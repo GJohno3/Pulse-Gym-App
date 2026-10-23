@@ -475,9 +475,9 @@
                     <div class="flex items-center justify-between gap-2 mb-2.5">
                         <div>
                             <h3 class="text-xs sm:text-sm font-bold tracking-tight">Strength & HIIT Progression</h3>
-                            <p class="text-[11px] text-slate-400 dark:text-slate-500">Best set each week or Assault Bike output</p>
+                            <p id="strength-chart-subtitle" class="text-[11px] text-slate-400 dark:text-slate-500">Best set each week or Assault Bike output</p>
                         </div>
-                        <span id="strength-pb-pill" class="text-[10px] font-extrabold font-mono px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                        <span id="strength-pb-pill" class="shrink-0 whitespace-nowrap text-[10px] font-extrabold font-mono px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-500 border border-amber-500/20">
                             PB: -
                         </span>
                     </div>
@@ -487,6 +487,12 @@
                         class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-gym-500 mb-3">
                         <!-- Populated dynamically -->
                     </select>
+
+                    <!-- Top set / estimated 1RM switch (weight × reps exercises only) -->
+                    <div id="chart-mode-toggle" class="hidden mb-3 grid grid-cols-2 bg-slate-100 dark:bg-slate-800/90 rounded-xl p-0.5 border border-slate-200/60 dark:border-slate-700/60 text-[11px] font-bold">
+                        <button type="button" data-mode="top" onclick="setChartMode('top')" class="py-1.5 rounded-lg transition-colors">Top set</button>
+                        <button type="button" data-mode="e1rm" onclick="setChartMode('e1rm')" class="py-1.5 rounded-lg transition-colors">Est. 1RM</button>
+                    </div>
 
                     <!-- Progression Visual Bars -->
                     <div id="strength-chart-bars" class="h-32 pt-3 pb-1 grid grid-cols-6 gap-2 items-end select-none">
@@ -709,8 +715,8 @@
     </div>
 
     <!-- MODAL 3: GYM REMINDERS & IPHONE CALENDAR ALARMS (.ICS) -->
-    <div id="reminders-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm">
-        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full p-5 shadow-2xl">
+    <div id="reminders-modal" style="padding-top: calc(env(safe-area-inset-top, 0px) + 0.75rem); padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem);" class="fixed inset-0 z-50 hidden items-center justify-center px-4 bg-slate-950/70 backdrop-blur-sm">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full p-5 shadow-2xl modal-sheet overflow-y-auto overscroll-contain">
             <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
                 <div class="flex items-center gap-2">
                     <div class="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-500 flex items-center justify-center">
@@ -718,7 +724,7 @@
                     </div>
                     <div>
                         <h3 class="text-sm sm:text-base font-bold">Gym Reminders & Alarms</h3>
-                        <p class="text-[11px] text-slate-500 dark:text-slate-400">Schedule your 4 weekly gym sessions</p>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400">Pick your training days, then add them to Calendar</p>
                     </div>
                 </div>
                 <button onclick="closeModal('reminders-modal')" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600">
@@ -730,11 +736,11 @@
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-[11px] font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">Preferred Gym Time</label>
-                        <input type="time" id="gym-reminder-time" value="17:30" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-mono font-bold">
+                        <input type="time" id="gym-reminder-time" value="17:30" onchange="saveReminderSettings()" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-mono font-bold">
                     </div>
                     <div>
                         <label class="block text-[11px] font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">Pre-Session Alert</label>
-                        <select id="gym-reminder-lead" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold">
+                        <select id="gym-reminder-lead" onchange="saveReminderSettings()" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold">
                             <option value="15">15 mins before</option>
                             <option value="30" selected>30 mins before</option>
                             <option value="60">1 hour before</option>
@@ -742,13 +748,24 @@
                     </div>
                 </div>
 
+                <!-- Training day for each workout -->
+                <div>
+                    <label class="block text-[11px] font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">Training Days</label>
+                    <div id="reminder-days-list" class="space-y-1.5">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+
                 <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 space-y-2">
-                    <h4 class="text-xs font-bold text-amber-600 dark:text-amber-400">1-Tap iPhone 17 Lock-Screen Gym Alarms (.ics)</h4>
+                    <h4 class="text-xs font-bold text-amber-600 dark:text-amber-400">iPhone Lock-Screen Gym Alarms (.ics)</h4>
                     <p class="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
-                        Installs recurring weekly alerts for <strong>Mon (Chest & Tris + 10m HIIT)</strong>, <strong>Tue (Back & Bis + 10m HIIT)</strong>, <strong>Thu (Shoulders & Legs + 10m HIIT)</strong>, and <strong>Sat (Cardio)</strong> directly into your iPhone Calendar.
+                        Adds one weekly Calendar event per training day, named after that day's workout with its exercises listed, plus an alert before it.
+                    </p>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                        Added PulseGym alarms before? Delete the old series in Calendar first so you don't get double alerts.
                     </p>
                     <button type="button" onclick="downloadGymIcsAlarms()" class="w-full py-2.5 px-3 rounded-xl text-xs font-extrabold bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-sm transition-all">
-                        Install 4-Day Split iPhone Alarms (.ics)
+                        Add Training Days to iPhone Calendar (.ics)
                     </button>
                 </div>
 
@@ -817,6 +834,40 @@
                 </div>
             </div>
             <div id="history-list" class="p-3 sm:p-4 overflow-y-auto overscroll-contain space-y-2">
+                <!-- Populated dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 6: PLATE CALCULATOR -->
+    <div id="plates-modal" onclick="if (event.target === this) closeModal('plates-modal')" style="padding-top: calc(env(safe-area-inset-top, 0px) + 0.75rem); padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem);" class="fixed inset-0 z-50 hidden items-center justify-center px-4 bg-slate-950/70 backdrop-blur-sm">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-sm w-full p-5 shadow-2xl modal-sheet overflow-y-auto overscroll-contain">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                <div class="min-w-0">
+                    <h3 class="text-base font-bold">🏋️ Plate Calculator</h3>
+                    <p id="plates-exercise-name" class="text-[11px] text-slate-500 dark:text-slate-400 truncate"></p>
+                </div>
+                <button onclick="closeModal('plates-modal')" aria-label="Close plate calculator" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 mt-4">
+                <div>
+                    <label for="plates-target" id="plates-target-label" class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Total (kg)</label>
+                    <input type="text" inputmode="decimal" autocomplete="off" id="plates-target" oninput="renderPlates()"
+                        class="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 text-sm font-mono font-extrabold focus:outline-none focus:ring-2 focus:ring-gym-500">
+                </div>
+                <div>
+                    <label for="plates-bar" class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Bar</label>
+                    <select id="plates-bar" onchange="handlePlatesBarChange()"
+                        class="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-gym-500">
+                        <!-- Populated dynamically -->
+                    </select>
+                </div>
+            </div>
+
+            <div id="plates-result" class="mt-4">
                 <!-- Populated dynamically -->
             </div>
         </div>
@@ -912,6 +963,7 @@
             activeSessionId: 'session-1',
             weekOffset: 0,
             historyFilter: 'all', // 'all' or a session id
+            chartMode: 'top', // progress chart for lifts: 'top' set weight or 'e1rm'
             isCustomized: false,
             updatedAt: 0
         };
@@ -1249,6 +1301,34 @@
             return best;
         }
 
+        // Estimated one-rep max (Epley): weight × (1 + reps / 30). Rough beyond ~12 reps, but it lets
+        // 60kg × 10 and 65kg × 7 be compared on one scale.
+        function estimateOneRepMax(kg, reps) {
+            if (!(kg > 0) || !(reps > 0)) return 0;
+            return reps === 1 ? kg : kg * (1 + reps / 30);
+        }
+
+        function setOneRepMax(st) {
+            return estimateOneRepMax(parseFloat(st.weight) || 0, parseInt(st.reps, 10) || 0);
+        }
+
+        function getBestOneRepMax(exerciseId) {
+            let best = 0;
+            Object.values(state.logs).forEach(wkObj => {
+                Object.values(wkObj || {}).forEach(sLog => {
+                    (sLog?.exercises?.[exerciseId] || []).forEach(st => {
+                        if (st.done) best = Math.max(best, setOneRepMax(st));
+                    });
+                });
+            });
+            return best;
+        }
+
+        // Whole numbers only: it's an estimate
+        function formatOneRepMax(kg) {
+            return `${Math.round(kgToDisplay(kg))}${state.unit}`;
+        }
+
         // A first-ever set isn't a PB (there's nothing to beat yet)
         function beatsBest(set, previousBest) {
             if (!previousBest || previousBest.first <= 0) return false;
@@ -1362,9 +1442,37 @@
             return sets.map(st => `${metricWithUnit(first, st.weight)} / ${metricWithUnit(second, st.reps)}`).join(', ');
         }
 
-        // Remember the actual day a session was trained (only knowable when logging in the current week)
-        function stampSessionDate(sLog, weekKey) {
-            if (!sLog.date && weekKey === getWeekKey(0)) sLog.date = formatDateKey(new Date());
+        // Remember the actual day and time a session was trained: when it started and the latest activity.
+        // Only knowable when logging in the current week (backfilled weeks stay undated).
+        function recordSessionActivity(sLog, weekKey) {
+            if (weekKey !== getWeekKey(0)) return;
+            const now = Date.now();
+            if (!sLog.date) sLog.date = formatDateKey(new Date(now));
+            if (!sLog.startedAt) sLog.startedAt = now;
+            sLog.lastActivityAt = now;
+        }
+
+        // Longer than this means sets spread over different days, not one workout
+        const MAX_WORKOUT_MS = 4 * 3600000;
+
+        // { start, end, ms, finished } for a believable single workout, otherwise null
+        function getSessionTiming(sLog) {
+            if (!sLog?.startedAt) return null;
+            const finished = !!(sLog.completed && sLog.finishedAt);
+            const end = finished ? sLog.finishedAt : (sLog.lastActivityAt || sLog.startedAt);
+            const ms = end - sLog.startedAt;
+            if (ms < 60000 || ms > MAX_WORKOUT_MS) return null;
+            return { start: sLog.startedAt, end, ms, finished };
+        }
+
+        // 52 -> "52 min", 65 -> "1 h 05 min"
+        function formatDuration(ms) {
+            const mins = Math.max(1, Math.round(ms / 60000));
+            return mins < 60 ? `${mins} min` : `${Math.floor(mins / 60)} h ${String(mins % 60).padStart(2, '0')} min`;
+        }
+
+        function formatClock(timestamp) {
+            return new Date(timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
         }
 
         function isSessionLogged(sLog) {
@@ -1444,6 +1552,25 @@
             }).join('');
         }
 
+        const SESSION_TIP = 'Tap ✓ on each set to log & auto-start the rest timer';
+
+        // Session header line: live "Started 18:05 · 34 min so far", or "Finished in 52 min" once complete
+        function renderSessionTiming() {
+            const el = document.getElementById('active-session-subtitle');
+            const sLog = state.logs[getWeekKey(state.weekOffset)]?.[state.activeSessionId];
+            const timing = getSessionTiming(sLog);
+            if (timing?.finished) {
+                el.textContent = `Finished in ${formatDuration(timing.ms)} · ${formatClock(timing.start)}–${formatClock(timing.end)}`;
+                return;
+            }
+            const sinceStart = sLog?.startedAt ? Date.now() - sLog.startedAt : -1;
+            if (!sLog?.completed && sinceStart >= 0 && sinceStart <= MAX_WORKOUT_MS) {
+                el.textContent = `Started ${formatClock(sLog.startedAt)} · ${formatDuration(sinceStart)} so far`;
+                return;
+            }
+            el.textContent = SESSION_TIP;
+        }
+
         function renderActiveSession(weekKey) {
             const session = state.sessions.find(s => s.id === state.activeSessionId) || state.sessions[0];
             const sLog = ensureSessionLog(weekKey, session.id);
@@ -1474,6 +1601,7 @@
 
             // 2. Session Header & Finish Buttons
             document.getElementById('active-session-title').textContent = `${session.number}. ${session.name}`;
+            renderSessionTiming();
             const statusBadge = document.getElementById('active-session-badge');
             const topBtn = document.getElementById('finish-session-top-btn');
             const botBtn = document.getElementById('finish-session-bottom-btn');
@@ -1626,6 +1754,7 @@
                         <!-- Add / Remove Set Footer -->
                         <div class="flex items-center justify-between mt-2.5 pt-2 border-t border-slate-200/50 dark:border-slate-800/70 text-[11px] font-semibold">
                             <button type="button" onclick="addSetToExercise('${ex.id}')" class="text-gym-600 dark:text-gym-400 hover:underline">+ Add Set</button>
+                            ${firstMetric === 'weight' ? `<button type="button" onclick="openPlatesModal('${ex.id}')" class="text-indigo-500 dark:text-indigo-400 hover:underline">🏋️ Plates</button>` : ''}
                             ${sets.length > 1 ? `<button type="button" onclick="removeLastSetFromExercise('${ex.id}')" class="text-slate-400 hover:text-rose-500">− Remove Last Set</button>` : ''}
                         </div>
                     </div>
@@ -1752,12 +1881,34 @@
             }
         }
 
+        function setChartMode(mode) {
+            state.chartMode = mode;
+            renderStrengthChart();
+        }
+
         function renderStrengthChart() {
             const select = document.getElementById('chart-exercise-select');
             const selectedId = select.value || 'ASSAULT_BIKE_CALS';
             const container = document.getElementById('strength-chart-bars');
             const points = [];
             let maxVal = 0;
+
+            // Charts the exercise's 1st measure (weight for lifts, e.g. distance or cals for cardio),
+            // or the estimated 1RM for weight × reps exercises when that view is chosen
+            const metric = selectedId === 'ASSAULT_BIKE_CALS' ? 'cals' : getTrackById(selectedId)[0];
+            const canShowOneRepMax = selectedId !== 'ASSAULT_BIKE_CALS' && isWeightReps(getTrackById(selectedId));
+            const showOneRepMax = canShowOneRepMax && state.chartMode === 'e1rm';
+            const toggle = document.getElementById('chart-mode-toggle');
+            toggle.classList.toggle('hidden', !canShowOneRepMax);
+            toggle.querySelectorAll('button').forEach(btn => {
+                const active = btn.dataset.mode === (showOneRepMax ? 'e1rm' : 'top');
+                btn.className = `py-1.5 rounded-lg transition-colors ${active
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                    : 'text-slate-500 dark:text-slate-400'}`;
+            });
+            document.getElementById('strength-chart-subtitle').textContent = showOneRepMax
+                ? 'Estimated 1-rep max each week (from weight × reps)'
+                : 'Best set each week or Assault Bike output';
 
             for (let i = -5; i <= 0; i++) {
                 const offset = state.weekOffset + i;
@@ -1778,7 +1929,7 @@
                         if (Array.isArray(sets)) {
                             sets.forEach(st => {
                                 if (!st.done) return; // pre-filled rows aren't lifts
-                                const w = parseFloat(st.weight) || 0;
+                                const w = showOneRepMax ? setOneRepMax(st) : (parseFloat(st.weight) || 0);
                                 if (w > val) val = w;
                             });
                         }
@@ -1788,11 +1939,11 @@
                 points.push({ label, val, isCurrent: i === 0 });
             }
 
-            // Charts the exercise's 1st measure (weight for lifts, e.g. distance or cals for cardio)
-            const metric = selectedId === 'ASSAULT_BIKE_CALS' ? 'cals' : getTrackById(selectedId)[0];
             const unitSuffix = metric === 'weight' ? state.unit : METRICS[metric].unit;
-            const showVal = v => metricInputValue(metric, v);
-            document.getElementById('strength-pb-pill').textContent = maxVal > 0 ? `Peak: ${showVal(maxVal)} ${unitSuffix}`.trim() : 'Peak: -';
+            const showVal = v => (showOneRepMax ? String(Math.round(kgToDisplay(v))) : metricInputValue(metric, v));
+            document.getElementById('strength-pb-pill').textContent = maxVal > 0
+                ? `${showOneRepMax ? 'Best e1RM' : 'Peak'}: ${showVal(maxVal)} ${unitSuffix}`.trim()
+                : 'Peak: -';
 
             container.innerHTML = points.map(p => {
                 const pct = maxVal > 0 ? Math.max(8, Math.round((p.val / maxVal) * 100)) : 8;
@@ -1815,16 +1966,21 @@
             const container = document.getElementById('pb-leaderboard');
 
             container.innerHTML = session.exercises.map(ex => {
-                const pb = getExercisePersonalBest(ex.id, getExerciseTrack(ex, session.type));
+                const track = getExerciseTrack(ex, session.type);
+                const pb = getExercisePersonalBest(ex.id, track);
+                const oneRepMax = isWeightReps(track) ? getBestOneRepMax(ex.id) : 0;
                 return `
                     <div class="p-2.5 rounded-xl bg-slate-50/90 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
                         <div class="min-w-0">
                             <p class="text-xs font-bold truncate">${escapeHtml(ex.name)}</p>
                             <span class="text-[10px] text-slate-400">${escapeHtml(ex.tag || '')}</span>
                         </div>
-                        <span class="text-xs font-extrabold font-mono px-2 py-1 rounded-lg bg-amber-500/10 text-amber-500 shrink-0">
-                            ${pb}
-                        </span>
+                        <div class="shrink-0 flex flex-col items-end gap-0.5">
+                            <span class="text-xs font-extrabold font-mono px-2 py-1 rounded-lg bg-amber-500/10 text-amber-500">
+                                ${pb}
+                            </span>
+                            ${oneRepMax > 0 ? `<span class="text-[10px] font-bold text-slate-400" title="Estimated 1-rep max">Est. 1RM ≈ ${formatOneRepMax(oneRepMax)}</span>` : ''}
+                        </div>
                     </div>
                 `;
             }).join('');
@@ -1859,7 +2015,7 @@
             const weekKey = getWeekKey(state.weekOffset);
             const sLog = ensureSessionLog(weekKey, state.activeSessionId);
             sLog.hiitDone = !sLog.hiitDone;
-            if (sLog.hiitDone) stampSessionDate(sLog, weekKey);
+            if (sLog.hiitDone) recordSessionActivity(sLog, weekKey);
             saveState();
             renderDashboard();
             if (sLog.hiitDone) {
@@ -1875,7 +2031,7 @@
             if ((parseInt(sLog.hiitCals, 10) > 0 || parseInt(sLog.hiitWatts, 10) > 0) && !sLog.hiitDone) {
                 sLog.hiitDone = true;
             }
-            if (sLog.hiitDone) stampSessionDate(sLog, weekKey);
+            if (sLog.hiitDone) recordSessionActivity(sLog, weekKey);
             saveState();
             renderDashboard();
         }
@@ -1910,7 +2066,7 @@
             const previousBest = setObj.done ? null : getBestSet(exerciseId); // measured before this set counts
             setObj.done = !setObj.done;
             markSetsTouched(sLog.exercises[exerciseId]);
-            if (setObj.done) stampSessionDate(sLog, weekKey);
+            if (setObj.done) recordSessionActivity(sLog, weekKey);
             saveState();
             renderDashboard();
 
@@ -1972,12 +2128,20 @@
                 sLog.hiitDone = true; // Auto-credit the mandatory 10m HIIT warmup when finishing session
             }
             sLog.completed = !sLog.completed;
-            if (sLog.completed) stampSessionDate(sLog, weekKey);
+            if (sLog.completed && weekKey === getWeekKey(0)) {
+                const lastSetAt = sLog.lastActivityAt;
+                recordSessionActivity(sLog, weekKey);
+                // "Complete" tapped long after the last set (e.g. back home): end the workout at that set
+                sLog.finishedAt = lastSetAt && Date.now() - lastSetAt > 20 * 60000 ? lastSetAt : Date.now();
+            } else if (!sLog.completed) {
+                delete sLog.finishedAt;
+            }
             saveState();
             renderDashboard();
 
             if (sLog.completed) {
-                showToast(`${session.name} marked complete for this week! 💪`, 'gym');
+                const timing = getSessionTiming(sLog);
+                showToast(`${session.name} complete${timing ? ` in ${formatDuration(timing.ms)}` : ' for this week'}! 💪`, 'gym');
             }
         }
 
@@ -2108,6 +2272,13 @@
             if (hiitTimerSeconds <= 0) hiitTimerSeconds = 600; // tapping "Done!" starts a fresh 10:00
             hiitTimerTarget = { weekKey: getWeekKey(state.weekOffset), sessionId: state.activeSessionId };
             hiitEndsAt = Date.now() + hiitTimerSeconds * 1000;
+            // Starting the bike warmup is the start of the workout
+            const warmupLog = ensureSessionLog(hiitTimerTarget.weekKey, hiitTimerTarget.sessionId);
+            if (!warmupLog.startedAt && hiitTimerTarget.weekKey === getWeekKey(0)) {
+                recordSessionActivity(warmupLog, hiitTimerTarget.weekKey);
+                saveState();
+                renderSessionTiming();
+            }
             btn.textContent = 'Pause';
             playBeep(660, 0.12);
             hiitTimerInterval = setInterval(tickHiitTimer, 250);
@@ -2137,7 +2308,7 @@
             const target = hiitTimerTarget || { weekKey: getWeekKey(state.weekOffset), sessionId: state.activeSessionId };
             const sLog = ensureSessionLog(target.weekKey, target.sessionId);
             sLog.hiitDone = true;
-            stampSessionDate(sLog, target.weekKey);
+            recordSessionActivity(sLog, target.weekKey);
             saveState();
             renderDashboard();
             updateHiitTimerUI();
@@ -2365,6 +2536,114 @@
             showToast('Exercise removed', 'rose');
         }
 
+        // Plate Calculator: plates per side for a barbell weight, in the chosen unit's standard plates
+        const PLATE_SETS = {
+            kg: [
+                { size: 25, color: '#ef4444', height: 100 },
+                { size: 20, color: '#3b82f6', height: 100 },
+                { size: 15, color: '#eab308', height: 90 },
+                { size: 10, color: '#22c55e', height: 80 },
+                { size: 5, color: '#e2e8f0', height: 62 },
+                { size: 2.5, color: '#475569', height: 50 },
+                { size: 1.25, color: '#94a3b8', height: 42 }
+            ],
+            lbs: [
+                { size: 45, color: '#3b82f6', height: 100 },
+                { size: 35, color: '#eab308', height: 92 },
+                { size: 25, color: '#22c55e', height: 84 },
+                { size: 10, color: '#e2e8f0', height: 66 },
+                { size: 5, color: '#ef4444', height: 54 },
+                { size: 2.5, color: '#94a3b8', height: 44 }
+            ]
+        };
+        const BARS = {
+            olympic: { name: 'Olympic', kg: 20, lbs: 45 },
+            womens: { name: "Women's", kg: 15, lbs: 35 },
+            ez: { name: 'EZ / short', kg: 10, lbs: 25 },
+            none: { name: 'No bar (machine)', kg: 0, lbs: 0 }
+        };
+        let platesExerciseId = null;
+
+        // Greedy fill, heaviest plates first: { plates: [25, 15], leftover: 0 } for one side
+        function calculatePlates(total, bar, unit) {
+            let leftover = Math.round(((total - bar) / 2) * 1000) / 1000;
+            const plates = [];
+            PLATE_SETS[unit].forEach(({ size }) => {
+                while (leftover >= size - 1e-9) {
+                    plates.push(size);
+                    leftover = Math.round((leftover - size) * 1000) / 1000;
+                }
+            });
+            return { plates, leftover };
+        }
+
+        function openPlatesModal(exerciseId) {
+            const found = findExercise(exerciseId);
+            if (!found) return;
+            platesExerciseId = exerciseId;
+            // Start from the next set still to do (or the last set) this week
+            const sets = state.logs[getWeekKey(state.weekOffset)]?.[state.activeSessionId]?.exercises?.[exerciseId] || [];
+            const next = sets.find(st => !st.done && parseFloat(st.weight)) || [...sets].reverse().find(st => parseFloat(st.weight));
+            document.getElementById('plates-exercise-name').textContent = found.ex.name;
+            document.getElementById('plates-target-label').textContent = `Total (${state.unit})`;
+            document.getElementById('plates-target').value = next ? formatWeight(next.weight) : '';
+            document.getElementById('plates-bar').innerHTML = Object.entries(BARS)
+                .map(([key, bar]) => `<option value="${key}">${escapeHtml(bar.name)}${bar[state.unit] ? ` (${bar[state.unit]} ${state.unit})` : ''}</option>`)
+                .join('');
+            document.getElementById('plates-bar').value = BARS[found.ex.bar] ? found.ex.bar : 'olympic';
+            renderPlates();
+            openModal('plates-modal');
+        }
+
+        // Each exercise remembers its bar (EZ for curls, Olympic for bench...)
+        function handlePlatesBarChange() {
+            const found = findExercise(platesExerciseId);
+            if (found) {
+                found.ex.bar = document.getElementById('plates-bar').value;
+                saveState();
+            }
+            renderPlates();
+        }
+
+        function renderPlates() {
+            const unit = state.unit;
+            const out = document.getElementById('plates-result');
+            const total = parseFloat(String(document.getElementById('plates-target').value).trim().replace(/,/g, '.'));
+            const bar = BARS[document.getElementById('plates-bar').value][unit];
+            const message = text => `<p class="text-xs text-slate-500 dark:text-slate-400 text-center py-6">${text}</p>`;
+            if (!isFinite(total) || total <= 0) {
+                out.innerHTML = message('Enter the total weight you want on the bar.');
+                return;
+            }
+            if (total < bar) {
+                out.innerHTML = message(`That's less than the bar itself (${bar} ${unit}).`);
+                return;
+            }
+
+            const { plates, leftover } = calculatePlates(total, bar, unit);
+            const styles = Object.fromEntries(PLATE_SETS[unit].map(p => [p.size, p]));
+            const loaded = Math.round((bar + 2 * plates.reduce((sum, p) => sum + p, 0)) * 100) / 100;
+            const smallest = PLATE_SETS[unit][PLATE_SETS[unit].length - 1].size;
+
+            // One side of the bar, centre on the left: shaft, then plates heaviest-first, then the sleeve end
+            const visual = `
+                <div class="flex items-center justify-center h-28 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-800 px-3" aria-hidden="true">
+                    <div class="h-2 w-10 bg-slate-400 dark:bg-slate-500 rounded-l"></div>
+                    <div class="h-5 w-1.5 bg-slate-500 dark:bg-slate-400 rounded-sm"></div>
+                    ${plates.map(p => `<div class="w-3.5 mx-px rounded-sm border border-slate-900/20" style="height:${styles[p].height}%;background:${styles[p].color}"></div>`).join('')}
+                    <div class="h-2 flex-1 max-w-[56px] bg-slate-400 dark:bg-slate-500 rounded-r"></div>
+                </div>`;
+
+            out.innerHTML = `
+                ${visual}
+                <div class="mt-3 text-center">
+                    <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Each side</p>
+                    <p class="text-lg font-black font-mono mt-0.5">${plates.length ? plates.join(' + ') : 'No plates'}</p>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">${bar ? `${bar} ${unit} bar + ` : ''}2 × ${Math.round(((loaded - bar) / 2) * 1000) / 1000} ${unit} = <strong>${loaded} ${unit}</strong></p>
+                    ${leftover > 0 ? `<p class="text-[11px] font-bold text-amber-600 dark:text-amber-400 mt-2">Can't make ${total} ${unit} exactly with ${smallest} ${unit} plates — closest is ${loaded} or ${Math.round((loaded + 2 * smallest) * 100) / 100} ${unit}.</p>` : ''}
+                </div>`;
+        }
+
         // Workout History
         function getHistoryEntries() {
             const sessionNumber = id => state.sessions.find(s => s.id === id)?.number || 0;
@@ -2433,6 +2712,8 @@
                 const watts = parseInt(sLog.hiitWatts, 10) || 0;
                 if (cals || watts) statParts.push(`🔥 ${cals} kcal${watts ? ` / ${watts}W` : ''}`);
                 else if (sLog.hiitDone) statParts.push('🔥 HIIT ✓');
+                const timing = getSessionTiming(sLog);
+                if (timing) statParts.push(`⏱ ${formatDuration(timing.ms)}`);
 
                 // Exercises in the session's current order, then any that have since been removed
                 const order = (session?.exercises || []).map(ex => ex.id);
@@ -2696,8 +2977,78 @@
         }
 
         // Reminders & iPhone .ICS Calendar Alarm Generator
+        const WEEKDAYS = [
+            { code: 'SU', name: 'Sunday' }, { code: 'MO', name: 'Monday' }, { code: 'TU', name: 'Tuesday' },
+            { code: 'WE', name: 'Wednesday' }, { code: 'TH', name: 'Thursday' }, { code: 'FR', name: 'Friday' },
+            { code: 'SA', name: 'Saturday' }
+        ];
+        const REMINDER_SETTINGS_KEY = 'pulsegym_reminders_v1';
+
+        // 0-6 (Sunday-Saturday) or -1 for no reminder; the original split ran Mon / Tue / Thu / Sat
+        function getReminderDay(session, index) {
+            if (Number.isInteger(session.reminderDay)) return session.reminderDay;
+            return [1, 2, 4, 6][index] ?? -1;
+        }
+
         function openRemindersModal() {
+            try {
+                const saved = JSON.parse(localStorage.getItem(REMINDER_SETTINGS_KEY) || '{}');
+                if (saved.time) document.getElementById('gym-reminder-time').value = saved.time;
+                if (saved.lead) document.getElementById('gym-reminder-lead').value = String(saved.lead);
+            } catch (e) {}
+            document.getElementById('reminder-days-list').innerHTML = state.sessions.map((session, index) => {
+                const day = getReminderDay(session, index);
+                return `
+                    <div class="flex items-center justify-between gap-2 px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800">
+                        <span class="text-xs font-bold truncate">${escapeHtml(session.shortName || session.name)}</span>
+                        <select onchange="setReminderDay('${session.id}', this.value)" aria-label="Reminder day for ${escapeHtml(session.name)}"
+                            class="shrink-0 px-2 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold">
+                            ${WEEKDAYS.map((d, i) => `<option value="${i}" ${i === day ? 'selected' : ''}>${d.name}</option>`).join('')}
+                            <option value="-1" ${day === -1 ? 'selected' : ''}>No reminder</option>
+                        </select>
+                    </div>`;
+            }).join('');
             openModal('reminders-modal');
+        }
+
+        function setReminderDay(sessionId, value) {
+            const session = state.sessions.find(s => s.id === sessionId);
+            if (!session) return;
+            session.reminderDay = parseInt(value, 10);
+            saveState();
+        }
+
+        function saveReminderSettings() {
+            try {
+                localStorage.setItem(REMINDER_SETTINGS_KEY, JSON.stringify({
+                    time: document.getElementById('gym-reminder-time').value,
+                    lead: parseInt(document.getElementById('gym-reminder-lead').value, 10)
+                }));
+            } catch (e) {}
+        }
+
+        // iCalendar text values escape \ ; , and newlines
+        function icsText(value) {
+            return String(value).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+        }
+
+        // iCalendar lines longer than 75 bytes continue on the next line after a leading space
+        function foldIcsLine(line) {
+            const encoder = new TextEncoder();
+            let out = '';
+            let current = '';
+            let bytes = 0;
+            for (const ch of line) {
+                const size = encoder.encode(ch).length;
+                if (bytes + size > 74) {
+                    out += current + '\r\n ';
+                    current = '';
+                    bytes = 1;
+                }
+                current += ch;
+                bytes += size;
+            }
+            return out + current;
         }
 
         function sendTestGymNotification() {
@@ -2731,45 +3082,63 @@
             const timeVal = document.getElementById('gym-reminder-time').value || '17:30';
             const leadMins = parseInt(document.getElementById('gym-reminder-lead').value, 10) || 30;
             const [hh, mm] = timeVal.split(':').map(Number);
+            const clock = `${String(hh).padStart(2, '0')}${String(mm).padStart(2, '0')}00`;
+            const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
 
-            // Start on the next Mon/Tue/Thu/Sat so the series doesn't add a stray event today
-            const firstDay = new Date();
-            while (![1, 2, 4, 6].includes(firstDay.getDay())) {
-                firstDay.setDate(firstDay.getDate() + 1);
+            // One weekly event per training day, named after that day's workout
+            const events = state.sessions.flatMap((session, index) => {
+                const day = getReminderDay(session, index);
+                if (day < 0) return [];
+                // First occurrence on (or after) today, so the series doesn't add a stray event on another day
+                const firstDay = new Date();
+                while (firstDay.getDay() !== day) firstDay.setDate(firstDay.getDate() + 1);
+
+                const title = `💪 Day ${session.number} · ${session.name}${session.requiresAssaultBike ? ' + 10m Bike HIIT' : ''}`;
+                const details = [
+                    ...(session.requiresAssaultBike ? ['Start with 10 mins Assault Bike HIIT.', ''] : []),
+                    ...session.exercises.map(ex => `• ${ex.name} — ${ex.target}`)
+                ].join('\n');
+                return [
+                    'BEGIN:VEVENT',
+                    `UID:pulsegym-${session.id}@pulsegym.app`,
+                    `DTSTAMP:${stamp}`,
+                    `DTSTART:${formatDateKey(firstDay).replace(/-/g, '')}T${clock}`,
+                    'DURATION:PT1H15M',
+                    `RRULE:FREQ=WEEKLY;BYDAY=${WEEKDAYS[day].code}`,
+                    `SUMMARY:${icsText(title)}`,
+                    `DESCRIPTION:${icsText(details)}`,
+                    'BEGIN:VALARM',
+                    `TRIGGER:-PT${leadMins}M`,
+                    'ACTION:DISPLAY',
+                    `DESCRIPTION:${icsText(`${session.name} starts in ${leadMins} mins`)}`,
+                    'END:VALARM',
+                    'END:VEVENT'
+                ];
+            });
+            if (!events.length) {
+                showToast('Pick at least one training day first.', 'rose');
+                return;
             }
-            const dtStart = `${formatDateKey(firstDay).replace(/-/g, '')}T${String(hh).padStart(2, '0')}${String(mm).padStart(2, '0')}00`;
 
             const icsLines = [
                 'BEGIN:VCALENDAR',
                 'VERSION:2.0',
-                'PRODID:-//PulseGym//4-Day Split//EN',
+                'PRODID:-//PulseGym//Training Days//EN',
                 'CALSCALE:GREGORIAN',
-                'BEGIN:VEVENT',
-                'UID:pulsegym-4daysplit@pulsegym.local',
-                `DTSTART:${dtStart}`,
-                'DURATION:PT1H15M',
-                'RRULE:FREQ=WEEKLY;BYDAY=MO,TU,TH,SA',
-                'SUMMARY:💪 PulseGym Session + 10m Assault Bike HIIT',
-                'DESCRIPTION:1. Chest & Triceps (10m HIIT)\\n2. Back & Biceps (10m HIIT)\\n3. Shoulders & Legs (10m HIIT)\\n4. Cardio Session',
-                'BEGIN:VALARM',
-                `TRIGGER:-PT${leadMins}M`,
-                'ACTION:DISPLAY',
-                'DESCRIPTION:PulseGym Workout Starting Soon',
-                'END:VALARM',
-                'END:VEVENT',
+                ...events,
                 'END:VCALENDAR'
             ];
 
-            const blob = new Blob([icsLines.join('\r\n')], { type: 'text/calendar;charset=utf-8' });
+            const blob = new Blob([icsLines.map(foldIcsLine).join('\r\n')], { type: 'text/calendar;charset=utf-8' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'pulsegym-schedule.ics';
+            a.download = 'pulsegym-training-days.ics';
             document.body.appendChild(a);
             a.click();
             a.remove();
             setTimeout(() => URL.revokeObjectURL(url), 10000);
-            showToast('Downloaded iPhone Calendar Alarms (.ics)!', 'gym');
+            showToast('Downloaded your training-day alarms (.ics)!', 'gym');
         }
 
         // Reset Functions
@@ -2891,6 +3260,9 @@
         initTheme();
         loadInitialState();
         renderDashboard();
+
+        // Keep the "34 min so far" line in the session header ticking
+        setInterval(renderSessionTiming, 30000);
 
         // Offline support at the gym: cache the app shell (needs sw.js next to index.html; skipped if missing)
         if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
