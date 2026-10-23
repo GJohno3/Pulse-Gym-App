@@ -4,6 +4,14 @@
   publish = "site"
   command = "npm run build"
 
+[build.environment]
+  NODE_VERSION = "22"
+
+# Push reminders: a small API (/api/push/*) and a job that runs every 5 minutes (netlify/functions).
+# Subscriptions and the push signing keys are kept in Netlify Blobs; nothing needs setting up by hand.
+[functions]
+  directory = "netlify/functions"
+
 # Security headers. The app's scripts are inline (onclick handlers), so 'unsafe-inline' stays,
 # but nothing outside the site can be loaded or contacted except Google Fonts.
 [[headers]]

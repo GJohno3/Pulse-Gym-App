@@ -4,6 +4,7 @@ A 4-day split & Assault Bike HIIT tracker, built as an installable web app for i
 
 - **Everything runs on the phone.** Workouts are saved in the browser's local storage for the site's address — there is no server or account. Use **App / Export → Save .json** (or the in-app backup reminder) to keep a copy.
 - **Works offline** at the gym via a service worker (`site/sw.js`).
+- **Push reminders** (optional, Reminders screen): a small Netlify function sends a notification before each training session. iPhone allows this for Home Screen apps only (iOS 16.4+).
 
 ## Layout
 
@@ -16,7 +17,9 @@ site/                  The app, published as-is
   *.png                App icons
 src/styles.css         Tailwind source for site/styles.css
 tailwind.config.js     Tailwind theme (app colours and fonts)
-netlify.toml           Build command, published folder and security headers
+netlify/functions/     Push reminders: push.mjs (API at /api/push/*), push-reminders.mjs (runs every 5 min)
+netlify/lib/           Shared push logic (validation, due times, sending)
+netlify.toml           Build command, published folder, functions and security headers
 ```
 
 ## Deploying
@@ -24,6 +27,12 @@ netlify.toml           Build command, published folder and security headers
 Netlify is linked to this repository: every push to `main` is published automatically to the existing site address, so data saved on the phone carries over. Each deploy runs `npm run build`, which regenerates `site/styles.css` from the classes used in `index.html`.
 
 Keep the site on the same address — a new address starts with empty storage on the phone.
+
+## Push reminders
+
+- Turning notifications on sends the server this device's push address, the training days, workout names, reminder time and time zone. Workout logs never leave the phone.
+- They're stored in Netlify Blobs, along with the push signing keys, which are generated automatically on first use. There's nothing to configure.
+- Every 5 minutes, `push-reminders.mjs` sends any reminders that are due, in each device's own time zone. Devices that have unsubscribed are removed.
 
 ## Security
 

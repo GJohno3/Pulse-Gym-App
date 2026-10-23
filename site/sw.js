@@ -112,11 +112,38 @@ self.addEventListener('fetch', (event) => {
     if (req.method !== 'GET') return;
     const url = new URL(req.url);
 
-    if (req.mode === 'navigate' && url.origin === self.location.origin) {
+    if (url.origin === self.location.origin && url.pathname.startsWith('/api/')) {
+        return; // the push API: always straight to the server, never cached
+    } else if (req.mode === 'navigate' && url.origin === self.location.origin) {
         event.respondWith(handleNavigation(event));
     } else if (url.href === STYLES_URL) {
         event.respondWith(handleStyles(event));
     } else if (url.origin === self.location.origin || FONT_HOSTS.includes(url.hostname)) {
         event.respondWith(handleAsset(event));
     }
+});
+
+// Training reminders pushed by the server (netlify/functions/push-reminders.mjs). iPhone requires
+// every push to show a notification, so one is always shown.
+self.addEventListener('push', (event) => {
+    let data = {};
+    try { data = event.data ? event.data.json() : {}; } catch (e) {}
+    event.waitUntil(self.registration.showNotification(data.title || 'PulseGym', {
+        body: data.body || 'Time to train! 💪',
+        tag: data.tag || 'pulsegym',
+        icon: 'icon-192.png',
+        badge: 'icon-192.png',
+        data: { url: data.url || './' }
+    }));
+});
+
+// Tapping a notification brings PulseGym to the front (or opens it)
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+    event.waitUntil((async () => {
+        const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+        const open = windows.find(w => new URL(w.url).origin === self.location.origin);
+        if (open) return open.focus();
+        return self.clients.openWindow(SHELL_URL);
+    })());
 });

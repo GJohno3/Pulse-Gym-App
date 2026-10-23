@@ -717,7 +717,7 @@
                     </div>
                     <div>
                         <h3 class="text-sm sm:text-base font-bold">Gym Reminders & Alarms</h3>
-                        <p class="text-[11px] text-slate-500 dark:text-slate-400">Pick your training days, then add them to Calendar</p>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400">Pick your training days, then turn on notifications</p>
                     </div>
                 </div>
                 <button onclick="closeModal('reminders-modal')" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600">
@@ -749,6 +749,26 @@
                     </div>
                 </div>
 
+                <!-- Push notifications: sent by the site's server, so they arrive with PulseGym closed -->
+                <div id="push-panel" class="p-3 rounded-xl bg-violet-500/10 border border-violet-500/25 space-y-2">
+                    <div class="flex items-center justify-between gap-2">
+                        <h4 class="text-xs font-bold text-violet-600 dark:text-violet-400">Push Notifications</h4>
+                        <span id="push-status-badge" class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-slate-900/10 dark:bg-white/10 text-slate-600 dark:text-slate-300">Off</span>
+                    </div>
+                    <p id="push-status-text" class="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed"></p>
+                    <div class="flex gap-2">
+                        <button type="button" id="push-enable-btn" onclick="enablePushReminders()" class="hidden flex-1 py-2.5 px-3 rounded-xl text-xs font-extrabold bg-violet-600 hover:bg-violet-500 text-white shadow-sm transition-all disabled:opacity-60">
+                            Turn On Notifications
+                        </button>
+                        <button type="button" id="push-test-btn" onclick="sendPushTest()" class="hidden flex-1 py-2.5 px-3 rounded-xl text-xs font-extrabold bg-violet-600 hover:bg-violet-500 text-white shadow-sm transition-all disabled:opacity-60">
+                            Send Test
+                        </button>
+                        <button type="button" id="push-disable-btn" onclick="disablePushReminders()" class="hidden px-3.5 py-2.5 rounded-xl text-xs font-bold bg-white/70 dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 disabled:opacity-60">
+                            Turn Off
+                        </button>
+                    </div>
+                </div>
+
                 <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 space-y-2">
                     <h4 class="text-xs font-bold text-amber-600 dark:text-amber-400">iPhone Lock-Screen Gym Alarms (.ics)</h4>
                     <p class="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
@@ -756,16 +776,14 @@
                     </p>
                     <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
                         Added PulseGym alarms before? Delete the old series in Calendar first so you don't get double alerts.
+                        Using push notifications? You don't need these as well.
                     </p>
                     <button type="button" onclick="downloadGymIcsAlarms()" class="w-full py-2.5 px-3 rounded-xl text-xs font-extrabold bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-sm transition-all">
                         Add Training Days to iPhone Calendar (.ics)
                     </button>
                 </div>
 
-                <div class="flex items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                    <button type="button" onclick="sendTestGymNotification()" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200">
-                        Test Push Banner
-                    </button>
+                <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                     <button type="button" onclick="closeModal('reminders-modal')" class="px-4 py-2 rounded-xl text-xs font-bold bg-gym-600 text-white">
                         Done
                     </button>
@@ -3230,6 +3248,7 @@
             saveState();
             closeModal('backup-modal');
             renderDashboard();
+            queuePushSync(); // restored training days and workout names
         }
 
         function restoreFromBackupCode() {
@@ -3380,7 +3399,12 @@
                         </select>
                     </div>`;
             }).join('');
+            renderPushPanel();
             openModal('reminders-modal');
+            // Fetch the server's push key now, so "Turn On" can go straight to iPhone's prompt
+            if (getPushSupport() === 'ok' && !pushPublicKey) {
+                pushApi('key').then(data => { pushPublicKey = data.publicKey; }).catch(() => {});
+            }
         }
 
         function setReminderDay(sessionId, value) {
@@ -3388,6 +3412,8 @@
             if (!session) return;
             session.reminderDay = parseInt(value, 10);
             saveState();
+            renderPushPanel();
+            queuePushSync();
         }
 
         function saveReminderSettings() {
@@ -3397,6 +3423,8 @@
                     lead: parseInt(document.getElementById('gym-reminder-lead').value, 10)
                 }));
             } catch (e) {}
+            renderPushPanel();
+            queuePushSync();
         }
 
         // iCalendar text values escape \ ; , and newlines
@@ -3423,31 +3451,212 @@
             return out + current;
         }
 
-        function sendTestGymNotification() {
-            if (!('Notification' in window)) {
-                showToast('Use the .ics button above for native iPhone lock-screen alarms!', 'hiit');
+        /**************************************************************
+         * PUSH NOTIFICATIONS
+         * Training-day reminders sent by the site's server (netlify/functions), so they arrive with
+         * PulseGym closed. The server only gets this device's push address, the training days, workout
+         * names, time and time zone; workout logs never leave the phone.
+         * iPhone allows web push only for Home Screen apps (iOS 16.4+).
+         **************************************************************/
+        const PUSH_STATE_KEY = 'pulsegym_push_v1'; // { on, syncedAt }
+        const PUSH_RESYNC_MS = 24 * 3600000;
+        let pushPublicKey = null;
+        let pushBusy = false;
+        let pushSyncTimer = null;
+
+        function readPushState() {
+            try { return JSON.parse(localStorage.getItem(PUSH_STATE_KEY) || '{}'); } catch (e) { return {}; }
+        }
+
+        function writePushState(value) {
+            try { localStorage.setItem(PUSH_STATE_KEY, JSON.stringify(value)); } catch (e) {}
+        }
+
+        function isHomeScreenApp() {
+            return window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+        }
+
+        // 'ok', 'needs-home-screen' (iPhone Safari tab) or 'unsupported'
+        function getPushSupport() {
+            if ('serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window) return 'ok';
+            return isHomeScreenApp() ? 'unsupported' : 'needs-home-screen';
+        }
+
+        function isPushOn() {
+            return getPushSupport() === 'ok' && Notification.permission === 'granted' && !!readPushState().on;
+        }
+
+        function getReminderSettings() {
+            let saved = {};
+            try { saved = JSON.parse(localStorage.getItem(REMINDER_SETTINGS_KEY) || '{}'); } catch (e) {}
+            return {
+                time: /^\d{2}:\d{2}$/.test(saved.time) ? saved.time : '17:30',
+                lead: Number.isInteger(saved.lead) ? saved.lead : 30
+            };
+        }
+
+        // What the server needs to send reminders: days, workout names, time and time zone
+        function getReminderSchedule() {
+            return {
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+                ...getReminderSettings(),
+                reminders: state.sessions
+                    .map((session, index) => ({
+                        day: getReminderDay(session, index),
+                        label: `Day ${session.number} · ${session.name}`.slice(0, 80),
+                        hiit: !!session.requiresAssaultBike
+                    }))
+                    .filter(r => r.day >= 0)
+            };
+        }
+
+        async function pushApi(action, body) {
+            const res = await fetch(`/api/push/${action}`, body
+                ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+                : { cache: 'no-store' });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || `server error ${res.status}`);
+            return data;
+        }
+
+        function base64UrlToBytes(value) {
+            const base64 = value.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (value.length % 4)) % 4);
+            return Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+        }
+
+        function sameKey(buffer, bytes) {
+            const a = new Uint8Array(buffer || []);
+            return a.length === bytes.length && a.every((v, i) => v === bytes[i]);
+        }
+
+        async function getPushSubscription() {
+            const reg = await navigator.serviceWorker.ready;
+            return reg.pushManager.getSubscription();
+        }
+
+        function renderPushPanel() {
+            const badge = document.getElementById('push-status-badge');
+            const text = document.getElementById('push-status-text');
+            const show = (id, visible) => document.getElementById(id).classList.toggle('hidden', !visible);
+            const support = getPushSupport();
+            const permission = support === 'ok' ? Notification.permission : 'default';
+            const on = isPushOn();
+            const { time, lead } = getReminderSettings();
+            const days = getReminderSchedule().reminders
+                .map(r => r.day)
+                .sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)) // Monday first, like the app's weeks
+                .map(day => WEEKDAYS[day].name.slice(0, 3));
+
+            badge.textContent = on ? 'On' : (support === 'needs-home-screen' ? 'Home Screen only' : 'Off');
+            badge.className = `text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
+                on ? 'bg-violet-600 text-white' : 'bg-slate-900/10 dark:bg-white/10 text-slate-600 dark:text-slate-300'
+            }`;
+            if (support === 'needs-home-screen') {
+                text.textContent = 'Open PulseGym from its Home Screen icon to turn these on: iPhone only allows notifications for Home Screen apps.';
+            } else if (support === 'unsupported') {
+                text.textContent = "This browser can't receive push notifications. Use the Calendar alarms below instead.";
+            } else if (permission === 'denied') {
+                text.textContent = 'Notifications are blocked for PulseGym. Allow them in iPhone Settings → Notifications → PulseGym, then come back here.';
+            } else if (on) {
+                text.textContent = days.length
+                    ? `A reminder ${lead === 60 ? '1 hour' : `${lead} mins`} before ${time} on ${days.join(', ')}, even when PulseGym is closed.`
+                    : 'On, but no training days are picked above.';
+            } else {
+                text.textContent = 'Get a notification before each training session, even when PulseGym is closed.';
+            }
+            show('push-enable-btn', support === 'ok' && permission !== 'denied' && !on);
+            show('push-test-btn', on);
+            show('push-disable-btn', on);
+            ['push-enable-btn', 'push-test-btn', 'push-disable-btn'].forEach(id => { document.getElementById(id).disabled = pushBusy; });
+            document.getElementById('push-enable-btn').textContent = pushBusy && !on ? 'Turning on…' : 'Turn On Notifications';
+        }
+
+        async function enablePushReminders() {
+            if (getPushSupport() !== 'ok' || pushBusy) return;
+            // Asked first, straight from the tap: iPhone only shows the permission prompt then
+            const permission = await Notification.requestPermission();
+            if (permission !== 'granted') {
+                renderPushPanel();
                 return;
             }
-            Notification.requestPermission().then(async perm => {
-                if (perm !== 'granted') {
-                    showToast('Tap the .ics button for guaranteed iPhone Calendar alarms!', 'hiit');
+            pushBusy = true;
+            renderPushPanel();
+            try {
+                const key = base64UrlToBytes(pushPublicKey || (pushPublicKey = (await pushApi('key')).publicKey));
+                const reg = await navigator.serviceWorker.ready;
+                let sub = await reg.pushManager.getSubscription();
+                if (sub && !sameKey(sub.options?.applicationServerKey, key)) {
+                    await sub.unsubscribe(); // made with an old server key: start again
+                    sub = null;
+                }
+                if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+                await pushApi('subscribe', { subscription: sub.toJSON(), ...getReminderSchedule() });
+                writePushState({ on: true, syncedAt: Date.now() });
+                showToast('Notifications on 🔔', 'superset');
+            } catch (e) {
+                showToast(`Couldn't turn on notifications (${e.message})`, 'rose');
+            }
+            pushBusy = false;
+            renderPushPanel();
+        }
+
+        async function sendPushTest() {
+            if (pushBusy) return;
+            pushBusy = true;
+            renderPushPanel();
+            try {
+                const sub = await getPushSubscription();
+                if (!sub) throw new Error('not set up on this device');
+                await pushApi('test', { subscription: sub.toJSON() });
+                showToast('Test sent: it should arrive in a few seconds', 'superset');
+            } catch (e) {
+                showToast(`Test failed (${e.message})`, 'rose');
+            }
+            pushBusy = false;
+            renderPushPanel();
+        }
+
+        async function disablePushReminders() {
+            if (pushBusy) return;
+            pushBusy = true;
+            renderPushPanel();
+            try {
+                const sub = await getPushSubscription();
+                if (sub) {
+                    await pushApi('unsubscribe', { subscription: sub.toJSON() }).catch(() => {});
+                    await sub.unsubscribe();
+                }
+            } catch (e) {}
+            writePushState({ on: false });
+            pushBusy = false;
+            renderPushPanel();
+            showToast('Notifications off', 'gym');
+        }
+
+        // Send the latest days/time to the server. Also run daily on launch, which notices if
+        // iPhone has dropped the subscription (e.g. notifications switched off in Settings).
+        async function syncPushSchedule({ quiet = false } = {}) {
+            if (!readPushState().on) return;
+            try {
+                const sub = getPushSupport() === 'ok' && Notification.permission === 'granted' ? await getPushSubscription() : null;
+                if (!sub) {
+                    writePushState({ on: false });
+                    renderPushPanel();
                     return;
                 }
-                const title = 'PulseGym — Time to Train! 💪';
-                const options = { body: 'Start with 10 mins HIIT on the Assault Bike before hitting your sets.' };
-                try {
-                    // iOS Home Screen apps only allow notifications shown through the service worker
-                    const reg = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistration() : null;
-                    if (reg) {
-                        await reg.showNotification(title, options);
-                    } else {
-                        new Notification(title, options);
-                    }
-                    showToast('Test notification sent!', 'gym');
-                } catch (e) {
-                    showToast('Tap the .ics button for guaranteed iPhone Calendar alarms!', 'hiit');
-                }
-            });
+                await pushApi('subscribe', { subscription: sub.toJSON(), ...getReminderSchedule() });
+                writePushState({ on: true, syncedAt: Date.now() });
+                if (!quiet) showToast('Reminders updated 🔔', 'superset');
+            } catch (e) {
+                if (!quiet) showToast("Couldn't update reminders: check your connection", 'rose');
+            }
+            renderPushPanel();
+        }
+
+        function queuePushSync() {
+            if (!readPushState().on) return;
+            clearTimeout(pushSyncTimer);
+            pushSyncTimer = setTimeout(() => syncPushSchedule(), 800);
         }
 
         function downloadGymIcsAlarms() {
@@ -3640,6 +3849,10 @@
         if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('sw.js').catch(() => {});
+                // Push reminders: refresh the server's copy of the schedule once a day
+                if (readPushState().on && Date.now() - (readPushState().syncedAt || 0) > PUSH_RESYNC_MS) {
+                    syncPushSchedule({ quiet: true });
+                }
             });
         }
 

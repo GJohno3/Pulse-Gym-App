@@ -7,5 +7,9 @@
   },
   "devDependencies": {
     "tailwindcss": "3.4.17"
+  },
+  "dependencies": {
+    "@netlify/blobs": "11.1.6",
+    "web-push": "3.6.7"
   }
 }
