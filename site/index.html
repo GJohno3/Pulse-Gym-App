@@ -406,7 +406,7 @@
                     </div>
 
                     <!-- Exercises List Container -->
-                    <div id="exercises-list-container" class="p-2.5 sm:p-4 space-y-3">
+                    <div id="exercises-list-container" class="p-2.5 sm:p-4 space-y-4">
                         <!-- Populated dynamically -->
                     </div>
 
@@ -425,6 +425,26 @@
 
             <!-- RIGHT COLUMN (4 Cols on XL): Progress Analytics, Strength Curve & Workout History -->
             <aside class="xl:col-span-4 flex flex-col gap-3">
+
+                <!-- WEEKLY SUMMARY: the selected week compared with the week before -->
+                <div id="weekly-summary" class="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-3.5 sm:p-4 shadow-sm">
+                    <div class="flex items-center justify-between gap-2">
+                        <div class="min-w-0">
+                            <h3 class="text-xs sm:text-sm font-bold tracking-tight">Weekly Summary</h3>
+                            <p id="weekly-summary-subtitle" class="text-[11px] text-slate-400 dark:text-slate-500 truncate">This week vs last week</p>
+                        </div>
+                        <span class="shrink-0 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 border border-indigo-500/20">
+                            Week vs Week
+                        </span>
+                    </div>
+                    <p id="weekly-summary-verdict" class="mt-2.5 text-xs font-bold text-slate-700 dark:text-slate-200"></p>
+                    <div id="weekly-summary-progress" class="hidden mt-2 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                        <div id="weekly-summary-bar" class="h-full rounded-full bg-gradient-to-r from-indigo-500 to-gym-500 transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                    <div id="weekly-summary-grid" class="mt-3 grid grid-cols-3 gap-2">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
 
                 <!-- CHART 1: Weekly 4-Session Consistency & HIIT Bar Chart -->
                 <div class="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-3.5 sm:p-4 shadow-sm">
@@ -1156,6 +1176,7 @@
             }
             if ('track' in raw && !(Array.isArray(raw.track) && raw.track.length === 2 && raw.track.every(isMetric))) delete ex.track;
             if ('bar' in raw && !isSafeId(raw.bar)) delete ex.bar;
+            if ('supersetId' in raw && !isSafeId(raw.supersetId)) delete ex.supersetId;
             return ex;
         }
 
@@ -1173,6 +1194,7 @@
             if ('shortName' in raw) session.shortName = cleanText(raw.shortName);
             const day = raw.reminderDay;
             if ('reminderDay' in raw && !(Number.isInteger(day) && day >= -1 && day <= 6)) delete session.reminderDay;
+            normalizeSupersets(session);
             return session;
         }
 
@@ -1713,12 +1735,28 @@
             let totalSetsDone = 0;
             let totalSetsCount = 0;
 
+            const supersets = getSupersetGroups(session);
             listEl.innerHTML = session.exercises.map((ex, exIdx) => {
                 const sets = sLog.exercises[ex.id] || [];
                 const track = getExerciseTrack(ex, session.type);
                 const [firstMetric, secondMetric] = track;
                 const singleMeasure = secondMetric === 'none';
-                const restSeconds = getRestSeconds(ex);
+                // Supersets rest once per round, after the last exercise, for the longest rest in the group
+                const superset = supersets.find(g => exIdx >= g.start && exIdx <= g.end);
+                const supersetMembers = superset ? session.exercises.slice(superset.start, superset.end + 1) : [];
+                const restSeconds = !superset ? getRestSeconds(ex)
+                    : (exIdx === superset.end ? Math.max(...supersetMembers.map(getRestSeconds)) : 0);
+                const nextEx = session.exercises[exIdx + 1];
+                const linkedBelow = !!ex.supersetId && nextEx?.supersetId === ex.supersetId;
+                // Chip on the seam between this card and the next: links them into a superset, or unlinks
+                const supersetChip = nextEx ? `
+                        <button type="button" onclick="toggleSupersetLink(${exIdx})" aria-pressed="${linkedBelow}"
+                            aria-label="${linkedBelow ? 'Unlink' : 'Superset'} ${escapeHtml(ex.name)} ${linkedBelow ? 'from' : 'with'} ${escapeHtml(nextEx.name)}"
+                            class="absolute left-1/2 -translate-x-1/2 -bottom-5 z-10 h-6 px-2.5 rounded-full text-[10px] font-extrabold whitespace-nowrap shadow-sm transition-colors ${
+                                linkedBelow
+                                    ? 'bg-violet-600 text-white border border-violet-600'
+                                    : 'bg-white dark:bg-slate-900 text-slate-400 border border-dashed border-slate-300 dark:border-slate-700 hover:text-violet-500'
+                            }">${linkedBelow ? '🔗 Superset' : '+ Superset'}</button>` : '';
                 const pbText = getExercisePersonalBest(ex.id, track);
                 const doneInEx = sets.filter(st => st.done).length;
                 totalSetsDone += doneInEx;
@@ -1747,14 +1785,17 @@
                         </div>` : '';
 
                 return `
-                    <div class="p-3 sm:p-4 rounded-2xl bg-slate-50/90 dark:bg-slate-800/45 border border-slate-200/80 dark:border-slate-800 transition-all">
+                    <div class="relative p-3 sm:p-4 rounded-2xl bg-slate-50/90 dark:bg-slate-800/45 border border-slate-200/80 dark:border-slate-800 transition-all ${
+                        superset ? 'border-l-4 border-l-violet-500 dark:border-l-violet-500' : ''
+                    }">
                         <!-- Exercise Header Row -->
                         <div class="flex items-start justify-between gap-2 pb-2.5 border-b border-slate-200/70 dark:border-slate-700/60">
                             <div class="min-w-0">
                                 <div class="flex items-center flex-wrap gap-1.5">
+                                    ${superset ? `<span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md bg-violet-500/15 text-violet-600 dark:text-violet-400">Superset ${superset.letter} · ${exIdx - superset.start + 1}/${supersetMembers.length}</span>` : ''}
                                     <span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md bg-gym-500/10 text-gym-600 dark:text-gym-400">${escapeHtml(ex.tag || 'Exercise')}</span>
                                     <span class="text-[10px] font-bold text-slate-400">Target: ${escapeHtml(ex.target)}</span>
-                                    ${restSeconds > 0 ? `<span class="text-[10px] font-bold text-slate-400">Rest ${formatRest(restSeconds)}</span>` : ''}
+                                    ${restSeconds > 0 ? `<span class="text-[10px] font-bold text-slate-400">Rest ${formatRest(restSeconds)}${superset ? ' after round' : ''}</span>` : ''}
                                     <span id="pb-${ex.id}" class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500">PB: ${escapeHtml(pbText)}</span>
                                 </div>
                                 <h4 class="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white mt-1 leading-snug">${escapeHtml(ex.name)}</h4>
@@ -1797,7 +1838,7 @@
                         <!-- Individual Set Rows -->
                         <div class="space-y-1.5 mt-1.5">
                             ${sets.map((st, setIdx) => `
-                                <div class="grid grid-cols-12 gap-2 items-center p-1.5 rounded-xl border transition-all ${
+                                <div id="set-row-${ex.id}-${setIdx}" class="grid grid-cols-12 gap-2 items-center p-1.5 rounded-xl border transition-all scroll-mt-24 scroll-mb-28 ${
                                     st.done
                                         ? 'bg-gym-500/10 border-gym-500/35'
                                         : 'bg-white dark:bg-slate-900/80 border-slate-200/70 dark:border-slate-800'
@@ -1845,6 +1886,7 @@
                             ${firstMetric === 'weight' ? `<button type="button" onclick="openPlatesModal('${ex.id}')" class="text-indigo-500 dark:text-indigo-400 hover:underline">🏋️ Plates</button>` : ''}
                             ${sets.length > 1 ? `<button type="button" onclick="removeLastSetFromExercise('${ex.id}')" class="text-slate-400 hover:text-rose-500">− Remove Last Set</button>` : ''}
                         </div>
+                        ${supersetChip}
                     </div>
                 `;
             }).join('');
@@ -1911,6 +1953,121 @@
 
             document.getElementById('kpi-week-streak').textContent = `${streakWeeks} ${streakWeeks === 1 ? 'wk' : 'wks'}`;
             document.getElementById('kpi-total-workouts').textContent = `${totalAllTimeSessions} total logged`;
+
+            renderWeeklySummary(weekKey);
+        }
+
+        // PBs set in each week: ticked sets that beat every earlier set of the same exercise
+        // (the same rule as the PB celebration, so a first-ever set doesn't count)
+        function countPBsByWeek() {
+            const best = {};
+            const counts = {};
+            Object.keys(state.logs).sort().forEach(weekKey => {
+                Object.values(state.logs[weekKey] || {}).forEach(sLog => {
+                    Object.entries(sLog?.exercises || {}).forEach(([exerciseId, sets]) => {
+                        (sets || []).forEach(st => {
+                            if (!st.done) return;
+                            const previous = best[exerciseId];
+                            if (beatsBest(st, previous)) counts[weekKey] = (counts[weekKey] || 0) + 1;
+                            const first = parseFloat(st.weight) || 0;
+                            const second = parseFloat(st.reps) || 0;
+                            if (!previous || first > previous.first || (first === previous.first && second > previous.second)) {
+                                best[exerciseId] = { first, second };
+                            }
+                        });
+                    });
+                });
+            });
+            return counts;
+        }
+
+        // Same counting as the KPI cards, plus time trained and PBs
+        function getWeekTotals(weekKey, pbCounts) {
+            const wkObj = state.logs[weekKey] || {};
+            const totals = { sessions: 0, volumeKg: 0, sets: 0, ms: 0, pbs: pbCounts[weekKey] || 0, cals: 0 };
+            state.sessions.forEach(s => {
+                const sLog = wkObj[s.id];
+                if (!sLog) return;
+                if (sLog.completed) totals.sessions++;
+                totals.cals += parseInt(sLog.hiitCals, 10) || 0;
+                totals.ms += getSessionTiming(sLog)?.ms || 0;
+                const stats = getSessionStats(sLog, s.id);
+                totals.sets += stats.doneSets;
+                totals.volumeKg += stats.volumeKg;
+            });
+            return totals;
+        }
+
+        function previousWeekKey(weekKey) {
+            const monday = parseDateKey(weekKey);
+            return formatDateKey(new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() - 7));
+        }
+
+        // 200 min -> "3h 20m", 45 min -> "45m"
+        function formatTrainingTime(ms) {
+            const mins = Math.round(ms / 60000);
+            return mins >= 60 ? `${Math.floor(mins / 60)}h ${String(mins % 60).padStart(2, '0')}m` : `${mins}m`;
+        }
+
+        // "▲ 12%", "▼ 2", "Same" or "▲ New". Only "up" is coloured: a week in progress is always "down".
+        function weekDelta(current, previous, asPercent = false) {
+            if (!current && !previous) return { text: '–', tone: 'flat' };
+            if (!previous) return { text: '▲ New', tone: 'up' };
+            const diff = current - previous;
+            const amount = asPercent ? Math.round((Math.abs(diff) / previous) * 100) : Math.abs(diff);
+            if (amount === 0) return { text: 'Same', tone: 'flat' };
+            return { text: `${diff > 0 ? '▲' : '▼'} ${amount}${asPercent ? '%' : ''}`, tone: diff > 0 ? 'up' : 'down' };
+        }
+
+        function renderWeeklySummary(weekKey) {
+            const pbCounts = countPBsByWeek();
+            const cur = getWeekTotals(weekKey, pbCounts);
+            const prev = getWeekTotals(previousWeekKey(weekKey), pbCounts);
+            const isThisWeek = weekKey === getWeekKey(0);
+            const lastLabel = isThisWeek ? 'last week' : 'the week before';
+
+            document.getElementById('weekly-summary-subtitle').textContent = isThisWeek
+                ? 'This week vs last week'
+                : `${formatSessionDay(null, weekKey)} vs ${lastLabel}`;
+
+            // Headline: volume against the week before. A week still in progress is shown as "so far".
+            const ratio = prev.volumeKg > 0 ? cur.volumeKg / prev.volumeKg : 0;
+            const change = Math.round((ratio - 1) * 100);
+            let verdict;
+            if (!cur.sets && !prev.sets && !cur.sessions && !prev.sessions) {
+                verdict = 'Log a workout to start comparing weeks.';
+            } else if (prev.volumeKg > 0 && isThisWeek && ratio < 1) {
+                const left = Math.max(0, 4 - cur.sessions);
+                verdict = `${Math.round(ratio * 100)}% of last week's volume so far${left ? ` · ${left} session${left === 1 ? '' : 's'} to go` : ''}`;
+            } else if (prev.volumeKg > 0) {
+                verdict = change > 0 ? `Volume up ${change}% on ${lastLabel} 💪`
+                    : change < 0 ? `Volume down ${-change}% on ${lastLabel}`
+                    : `Same volume as ${lastLabel} 💪`;
+            } else if (cur.volumeKg > 0) {
+                verdict = `${formatVolume(cur.volumeKg)} lifted · nothing logged ${lastLabel}`;
+            } else {
+                verdict = `${cur.sessions} of 4 sessions done (${prev.sessions} ${lastLabel})`;
+            }
+            document.getElementById('weekly-summary-verdict').textContent = verdict;
+            document.getElementById('weekly-summary-progress').classList.toggle('hidden', !(prev.volumeKg > 0));
+            document.getElementById('weekly-summary-bar').style.width = `${Math.min(100, Math.round(ratio * 100))}%`;
+
+            const tiles = [
+                ['Sessions', `${cur.sessions}/4`, weekDelta(cur.sessions, prev.sessions), `${prev.sessions}/4`],
+                ['Volume', formatVolume(cur.volumeKg), weekDelta(cur.volumeKg, prev.volumeKg, true), formatVolume(prev.volumeKg)],
+                ['Sets', String(cur.sets), weekDelta(cur.sets, prev.sets), String(prev.sets)],
+                ['Time', formatTrainingTime(cur.ms), weekDelta(Math.round(cur.ms / 60000), Math.round(prev.ms / 60000), true), formatTrainingTime(prev.ms)],
+                ['PBs', String(cur.pbs), weekDelta(cur.pbs, prev.pbs), String(prev.pbs)],
+                ['HIIT kcal', String(cur.cals), weekDelta(cur.cals, prev.cals, true), String(prev.cals)]
+            ];
+            const toneClass = { up: 'text-gym-600 dark:text-gym-400', down: 'text-slate-400', flat: 'text-slate-400' };
+            document.getElementById('weekly-summary-grid').innerHTML = tiles.map(([label, value, delta, was]) => `
+                <div class="min-w-0 p-2 rounded-xl bg-slate-50/90 dark:bg-slate-800/45 border border-slate-100 dark:border-slate-800">
+                    <p class="text-[9px] font-extrabold uppercase tracking-wider text-slate-400 truncate">${label}</p>
+                    <p class="text-sm font-extrabold font-mono mt-0.5 truncate">${escapeHtml(value)}</p>
+                    <p class="text-[10px] font-bold truncate ${toneClass[delta.tone]}">${escapeHtml(delta.text)}</p>
+                    <p class="text-[9px] text-slate-400 truncate">was ${escapeHtml(was)}</p>
+                </div>`).join('');
         }
 
         function renderConsistencyChart() {
@@ -2160,6 +2317,19 @@
 
             if (setObj.done) {
                 if (beatsBest(setObj, previousBest)) celebratePB(ex, getExerciseTrack(ex, session?.type), setObj);
+                const superset = getSupersetAt(session, session?.exercises.indexOf(ex));
+                if (superset) {
+                    // Superset: go straight to the next exercise; rest once everyone's set is done this round
+                    const members = session.exercises.slice(superset.start, superset.end + 1);
+                    const next = nextInSupersetRound(members, sLog, exerciseId, setIndex);
+                    if (next) {
+                        cueSupersetNext(next, setIndex);
+                        return;
+                    }
+                    const rest = Math.max(...members.map(getRestSeconds));
+                    if (rest > 0) startRestTimer(rest);
+                    return;
+                }
                 const rest = getRestSeconds(ex);
                 if (rest > 0) startRestTimer(rest);
             }
@@ -2241,8 +2411,104 @@
             const tmp = session.exercises[index];
             session.exercises[index] = session.exercises[target];
             session.exercises[target] = tmp;
+            normalizeSupersets(session); // moving out of a superset leaves it
             saveState();
             renderDashboard();
+        }
+
+        /**************************************************************
+         * 7b. SUPERSETS
+         * Neighbouring exercises sharing a `supersetId` are a superset, done in rounds:
+         * A1, B1, rest, A2, B2, rest... So the rest timer only starts once a round is finished.
+         **************************************************************/
+        function newSupersetId() {
+            return 'ss-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+        }
+
+        // [{ start, end, letter }] for each run of 2+ neighbouring exercises with the same supersetId
+        function getSupersetGroups(session) {
+            const list = session?.exercises || [];
+            const groups = [];
+            let i = 0;
+            while (i < list.length) {
+                let end = i;
+                while (list[i].supersetId && list[end + 1]?.supersetId === list[i].supersetId) end++;
+                if (end > i) groups.push({ start: i, end, letter: String.fromCharCode(65 + groups.length) });
+                i = end + 1;
+            }
+            return groups;
+        }
+
+        function getSupersetAt(session, index) {
+            return getSupersetGroups(session).find(g => index >= g.start && index <= g.end) || null;
+        }
+
+        // A superset needs 2+ neighbours and its id appears in one place only. Run after anything
+        // that reorders, removes or moves exercises.
+        function normalizeSupersets(session) {
+            const list = session?.exercises || [];
+            const seen = new Set();
+            let i = 0;
+            while (i < list.length) {
+                const id = list[i].supersetId;
+                let end = i;
+                while (id && list[end + 1]?.supersetId === id) end++;
+                if (id && end === i) {
+                    delete list[i].supersetId;
+                } else if (id && seen.has(id)) {
+                    const fresh = newSupersetId();
+                    for (let k = i; k <= end; k++) list[k].supersetId = fresh;
+                    seen.add(fresh);
+                } else if (id) {
+                    seen.add(id);
+                }
+                i = end + 1;
+            }
+        }
+
+        // The chip between exercise `index` and the one below it: links them, or splits the superset there
+        function toggleSupersetLink(index) {
+            const session = state.sessions.find(s => s.id === state.activeSessionId);
+            const list = session?.exercises || [];
+            const above = list[index];
+            const below = list[index + 1];
+            if (!above || !below) return;
+            if (above.supersetId && above.supersetId === below.supersetId) {
+                const oldId = above.supersetId;
+                const fresh = newSupersetId();
+                for (let k = index + 1; list[k]?.supersetId === oldId; k++) list[k].supersetId = fresh;
+            } else {
+                // Join the two, bringing along any superset the lower exercise was already in
+                const id = above.supersetId || below.supersetId || newSupersetId();
+                const belowId = below.supersetId;
+                below.supersetId = id;
+                for (let k = index + 2; belowId && list[k]?.supersetId === belowId; k++) list[k].supersetId = id;
+                above.supersetId = id;
+            }
+            normalizeSupersets(session);
+            saveState();
+            renderDashboard();
+        }
+
+        // Next exercise in the superset still to do this round (set number `setIndex`), or null when the round is done
+        function nextInSupersetRound(members, sLog, exerciseId, setIndex) {
+            const from = members.findIndex(m => m.id === exerciseId);
+            for (let step = 1; step < members.length; step++) {
+                const m = members[(from + step) % members.length];
+                const st = sLog.exercises[m.id]?.[setIndex];
+                if (st && !st.done) return m;
+            }
+            return null;
+        }
+
+        // Point at the set to do next: a toast plus a brief highlight on its row
+        function cueSupersetNext(ex, setIndex) {
+            showToast(`Superset → ${ex.name} · set ${setIndex + 1}`, 'superset');
+            const row = document.getElementById(`set-row-${ex.id}-${setIndex}`);
+            if (!row) return;
+            row.classList.add('ring-2', 'ring-violet-500');
+            row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            setTimeout(() => row.classList.remove('ring-2', 'ring-violet-500'), 2500);
         }
 
         /**************************************************************
@@ -2589,6 +2855,8 @@
                     // Moved to another day: logged history follows it, since logs are keyed by exercise id
                     if (fromSession !== session) {
                         fromSession.exercises = fromSession.exercises.filter(item => item.id !== id);
+                        normalizeSupersets(fromSession);
+                        delete ex.supersetId; // it leaves its superset behind
                         session.exercises.push(ex);
                         state.activeSessionId = targetSessionId;
                     }
@@ -2619,6 +2887,7 @@
             const ex = session.exercises.find(e => e.id === exerciseId);
             if (!ex || !confirm(`Remove "${ex.name}" from ${session.name}?`)) return;
             session.exercises = session.exercises.filter(e => e.id !== exerciseId);
+            normalizeSupersets(session);
             saveState();
             renderDashboard();
             showToast('Exercise removed', 'rose');
@@ -3305,7 +3574,7 @@
         function showToast(msg, tone = 'gym') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
-            const bg = tone === 'hiit' ? 'bg-hiit-500' : (tone === 'rose' ? 'bg-rose-600' : 'bg-gym-600');
+            const bg = { hiit: 'bg-hiit-500', rose: 'bg-rose-600', superset: 'bg-violet-600' }[tone] || 'bg-gym-600';
             toast.className = `${bg} text-white text-xs font-extrabold px-3.5 py-2.5 rounded-xl shadow-lg transition-all duration-300`;
             toast.textContent = msg;
             container.appendChild(toast);
