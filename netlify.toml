@@ -1,4 +1,16 @@
-# PulseGym is plain static files: Netlify publishes the site/ folder as-is, no build step.
+# PulseGym is static files: Netlify publishes the site/ folder. The only build step generates
+# site/styles.css from the Tailwind classes used in site/index.html.
 [build]
   publish = "site"
-  command = ""
+  command = "npm run build"
+
+# Security headers. The app's scripts are inline (onclick handlers), so 'unsafe-inline' stays,
+# but nothing outside the site can be loaded or contacted except Google Fonts.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "no-referrer"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(), usb=()"

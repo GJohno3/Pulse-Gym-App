@@ -20,38 +20,11 @@
     <!-- Web App Manifest -->
     <link rel="manifest" href="manifest.webmanifest">
 
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tailwind styles, generated from this file's class names at deploy time (see tailwind.config.js) -->
+    <link rel="stylesheet" href="styles.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                        mono: ['JetBrains Mono', 'monospace'],
-                    },
-                    colors: {
-                        gym: {
-                            50: '#ecfdf5',
-                            100: '#d1fae5',
-                            400: '#34d399',
-                            500: '#10b981',
-                            600: '#059669',
-                            700: '#047857',
-                        },
-                        hiit: {
-                            400: '#fb923c',
-                            500: '#f97316',
-                            600: '#ea580c',
-                        }
-                    }
-                }
-            }
-        }
-    </script>
     <style>
         * {
             -webkit-tap-highlight-color: transparent;
@@ -1146,8 +1119,122 @@
         }
 
         /**************************************************************
-         * 3. MULTI-LAYER ON-DEVICE PERSISTENCE
+         * 3. CHECKING SAVED & IMPORTED DATA
+         * A backup code or file could come from anywhere, and IDs and dates end up inside the page's
+         * HTML and tap handlers. So everything loaded is checked first: entries with odd IDs are
+         * dropped and values are coerced to the types the app expects. Unknown fields are kept as-is.
          **************************************************************/
+        const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
+        const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/;
+        const MAX_TEXT = 200;
+
+        const isPlainObject = value => !!value && typeof value === 'object' && !Array.isArray(value);
+        const isSafeId = value => typeof value === 'string' && SAFE_ID.test(value);
+        const isDateKey = value => typeof value === 'string' && DATE_KEY.test(value);
+        const isMetric = key => typeof key === 'string' && Object.prototype.hasOwnProperty.call(METRICS, key);
+
+        function cleanText(value, maxLength = MAX_TEXT) {
+            if (typeof value === 'number' && isFinite(value)) return String(value);
+            return typeof value === 'string' ? value.slice(0, maxLength) : '';
+        }
+
+        function clampInt(value, min, max, fallback) {
+            const n = Math.round(Number(value));
+            return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback;
+        }
+
+        function sanitizeExercise(raw) {
+            if (!isPlainObject(raw) || !isSafeId(raw.id)) return null;
+            const ex = { ...raw, name: cleanText(raw.name) || 'Exercise' };
+            ['tag', 'target', 'notes'].forEach(key => {
+                if (key in raw) ex[key] = cleanText(raw[key]);
+            });
+            if ('defaultSets' in raw) ex.defaultSets = clampInt(raw.defaultSets, 1, 20, 3);
+            if ('rest' in raw) {
+                if (Number.isFinite(raw.rest)) ex.rest = clampInt(raw.rest, 0, 3600, 90);
+                else delete ex.rest;
+            }
+            if ('track' in raw && !(Array.isArray(raw.track) && raw.track.length === 2 && raw.track.every(isMetric))) delete ex.track;
+            if ('bar' in raw && !isSafeId(raw.bar)) delete ex.bar;
+            return ex;
+        }
+
+        function sanitizeSession(raw, index) {
+            if (!isPlainObject(raw) || !isSafeId(raw.id)) return null;
+            const number = clampInt(raw.number, 0, 999, index + 1);
+            const session = {
+                ...raw,
+                number,
+                name: cleanText(raw.name) || `Day ${number}`,
+                type: raw.type === 'cardio' ? 'cardio' : 'weights',
+                requiresAssaultBike: !!raw.requiresAssaultBike,
+                exercises: (Array.isArray(raw.exercises) ? raw.exercises : []).map(sanitizeExercise).filter(Boolean)
+            };
+            if ('shortName' in raw) session.shortName = cleanText(raw.shortName);
+            const day = raw.reminderDay;
+            if ('reminderDay' in raw && !(Number.isInteger(day) && day >= -1 && day <= 6)) delete session.reminderDay;
+            return session;
+        }
+
+        function sanitizeSet(raw) {
+            const st = { ...raw, weight: cleanText(raw.weight, 24), reps: cleanText(raw.reps, 24), done: !!raw.done };
+            if ('auto' in raw) st.auto = !!raw.auto; // a missing flag means something (legacy rows), so keep it missing
+            return st;
+        }
+
+        function sanitizeSessionLog(raw) {
+            const sLog = {
+                ...raw,
+                completed: !!raw.completed,
+                hiitDone: !!raw.hiitDone,
+                hiitCals: cleanText(raw.hiitCals, 24),
+                hiitWatts: cleanText(raw.hiitWatts, 24),
+                exercises: {}
+            };
+            if ('date' in raw && !isDateKey(raw.date)) delete sLog.date;
+            ['startedAt', 'lastActivityAt', 'finishedAt'].forEach(key => {
+                if (key in raw && !Number.isFinite(raw[key])) delete sLog[key];
+            });
+            Object.entries(isPlainObject(raw.exercises) ? raw.exercises : {}).forEach(([exerciseId, sets]) => {
+                if (isSafeId(exerciseId) && Array.isArray(sets)) {
+                    sLog.exercises[exerciseId] = sets.filter(isPlainObject).slice(0, 100).map(sanitizeSet);
+                }
+            });
+            return sLog;
+        }
+
+        function sanitizeLogs(raw) {
+            const logs = {};
+            Object.entries(isPlainObject(raw) ? raw : {}).forEach(([weekKey, week]) => {
+                if (!isDateKey(weekKey) || !isPlainObject(week)) return;
+                logs[weekKey] = {};
+                Object.entries(week).forEach(([sessionId, sLog]) => {
+                    if (isSafeId(sessionId) && isPlainObject(sLog)) logs[weekKey][sessionId] = sanitizeSessionLog(sLog);
+                });
+            });
+            return logs;
+        }
+
+        // Checked copy of saved/imported data, or null if it isn't PulseGym data at all
+        function sanitizeState(raw) {
+            if (!isPlainObject(raw) || !Array.isArray(raw.sessions)) return null;
+            const sessions = raw.sessions.map(sanitizeSession).filter(Boolean);
+            if (!sessions.length) return null;
+            return {
+                ...raw,
+                unit: raw.unit === 'lbs' ? 'lbs' : 'kg',
+                sessions,
+                logs: sanitizeLogs(raw.logs),
+                isCustomized: !!raw.isCustomized,
+                updatedAt: Number.isFinite(Number(raw.updatedAt)) ? Number(raw.updatedAt) : 0
+            };
+        }
+
+        /**************************************************************
+         * 3b. MULTI-LAYER ON-DEVICE PERSISTENCE
+         **************************************************************/
+        const LEGACY_WINDOW_NAME_PREFIX = 'PULSEGYM_V1:';
+
         function saveLocalCacheOnly() {
             const payload = {
                 dnaVersion: 2,
@@ -1158,9 +1245,13 @@
                 updatedAt: Number(state.updatedAt) || Date.now()
             };
             const raw = JSON.stringify(payload);
-            try { localStorage.setItem(STORAGE_KEY, raw); } catch (e) {}
+            try {
+                localStorage.setItem(STORAGE_KEY, raw);
+                // Older versions also kept a copy in window.name, which the next site opened in the same tab
+                // can read. Once the data is safely in localStorage, that copy is cleared.
+                if (window.name.startsWith(LEGACY_WINDOW_NAME_PREFIX)) window.name = '';
+            } catch (e) {}
             try { sessionStorage.setItem(STORAGE_KEY, raw); } catch (e) {}
-            try { window.name = 'PULSEGYM_V1:' + raw; } catch (e) {}
             return payload;
         }
 
@@ -1168,17 +1259,13 @@
             const candidates = [];
             try {
                 const l = localStorage.getItem(STORAGE_KEY);
-                if (l) candidates.push(JSON.parse(l));
+                if (l) candidates.push(sanitizeState(JSON.parse(l)));
             } catch (e) {}
             try {
                 const s = sessionStorage.getItem(STORAGE_KEY);
-                if (s) candidates.push(JSON.parse(s));
+                if (s) candidates.push(sanitizeState(JSON.parse(s)));
             } catch (e) {}
-            try {
-                if (window.name && window.name.startsWith('PULSEGYM_V1:')) {
-                    candidates.push(JSON.parse(window.name.slice('PULSEGYM_V1:'.length)));
-                }
-            } catch (e) {}
+            // The old window.name copy is never read back: any site opened earlier in the tab can set it
 
             let newest = null;
             for (const c of candidates) {
@@ -1198,9 +1285,10 @@
                 state.logs = cached.logs || {};
                 state.isCustomized = !!cached.isCustomized;
                 state.updatedAt = Number(cached.updatedAt) || Date.now();
+                saveLocalCacheOnly(); // store the checked copy (and clear the old window.name copy)
                 return;
             }
-            const defaults = migrateWeightsToKg(createDefaultGymDNA());
+            const defaults = migrateWeightsToKg(sanitizeState(createDefaultGymDNA()) || createDefaultGymDNA());
             state.unit = defaults.unit || 'kg';
             state.sessions = defaults.sessions;
             state.logs = defaults.logs || {};
@@ -1667,7 +1755,7 @@
                                     <span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md bg-gym-500/10 text-gym-600 dark:text-gym-400">${escapeHtml(ex.tag || 'Exercise')}</span>
                                     <span class="text-[10px] font-bold text-slate-400">Target: ${escapeHtml(ex.target)}</span>
                                     ${restSeconds > 0 ? `<span class="text-[10px] font-bold text-slate-400">Rest ${formatRest(restSeconds)}</span>` : ''}
-                                    <span id="pb-${ex.id}" class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500">PB: ${pbText}</span>
+                                    <span id="pb-${ex.id}" class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500">PB: ${escapeHtml(pbText)}</span>
                                 </div>
                                 <h4 class="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white mt-1 leading-snug">${escapeHtml(ex.name)}</h4>
                                 <!-- Standing note for this exercise (seat height, grip...): saved on blur without re-rendering -->
@@ -1977,7 +2065,7 @@
                         </div>
                         <div class="shrink-0 flex flex-col items-end gap-0.5">
                             <span class="text-xs font-extrabold font-mono px-2 py-1 rounded-lg bg-amber-500/10 text-amber-500">
-                                ${pb}
+                                ${escapeHtml(pb)}
                             </span>
                             ${oneRepMax > 0 ? `<span class="text-[10px] font-bold text-slate-400" title="Estimated 1-rep max">Est. 1RM ≈ ${formatOneRepMax(oneRepMax)}</span>` : ''}
                         </div>
@@ -2860,12 +2948,13 @@
             }
         }
 
-        function applyImportedState(parsed) {
-            if (!parsed || !Array.isArray(parsed.sessions)) throw new Error('Invalid');
+        function applyImportedState(imported) {
+            const parsed = sanitizeState(imported);
+            if (!parsed) throw new Error('Invalid');
             migrateWeightsToKg(parsed);
-            state.unit = parsed.unit || 'kg';
+            state.unit = parsed.unit;
             state.sessions = parsed.sessions;
-            state.logs = parsed.logs || {};
+            state.logs = parsed.logs;
             if (!state.sessions.some(s => s.id === state.activeSessionId)) {
                 state.activeSessionId = state.sessions[0]?.id;
             }
@@ -2936,6 +3025,19 @@
             event.target.value = '';
         }
 
+        // The saved file is opened on its own (no styles.css next to it), so copy the loaded stylesheet in.
+        // Read from the page rather than fetched, so the share sheet still opens straight from the tap.
+        function inlineAppStyles(snapshot) {
+            const link = snapshot.querySelector('link[rel="stylesheet"][href="styles.css"]');
+            const sheet = [...document.styleSheets].find(s => s.href && new URL(s.href).pathname.endsWith('/styles.css'));
+            if (!link || !sheet) return;
+            try {
+                const style = document.createElement('style');
+                style.textContent = [...sheet.cssRules].map(rule => rule.cssText).join('\n');
+                link.replaceWith(style);
+            } catch (e) {}
+        }
+
         async function downloadEmbeddedHtmlApp() {
             try {
                 const embeddedPayload = {
@@ -2959,6 +3061,7 @@
                 });
                 const toasts = snapshot.querySelector('#toast-container');
                 if (toasts) toasts.innerHTML = '';
+                inlineAppStyles(snapshot);
 
                 const rawHtml = '<!DOCTYPE html>\n' + snapshot.outerHTML;
                 const pattern = /\/\* __EMBEDDED_GYM_DNA_START__ \*\/[\s\S]*?\/\* __EMBEDDED_GYM_DNA_END__ \*\//;

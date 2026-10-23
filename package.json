@@ -1,0 +1,11 @@
+{
+  "name": "pulse-gym-app",
+  "private": true,
+  "description": "PulseGym: 4-day split & Assault Bike HIIT tracker",
+  "scripts": {
+    "build": "tailwindcss -c tailwind.config.js -i src/styles.css -o site/styles.css --minify"
+  },
+  "devDependencies": {
+    "tailwindcss": "3.4.17"
+  }
+}
