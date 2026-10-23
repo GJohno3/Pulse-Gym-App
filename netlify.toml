@@ -1,0 +1,4 @@
+# PulseGym is plain static files: Netlify publishes the site/ folder as-is, no build step.
+[build]
+  publish = "site"
+  command = ""

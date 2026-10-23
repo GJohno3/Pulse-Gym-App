@@ -1,0 +1,2908 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>PulseGym — 4-Day Split & Assault Bike HIIT Tracker</title>
+
+    <!-- Native iPhone 17 PWA & Mobile Home Screen App Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="PulseGym">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#090d16">
+    <meta name="application-name" content="PulseGym">
+
+    <!-- App Icons (Emerald/Orange Gym Crest). iOS ignores SVG touch icons, so the Home Screen icon is a PNG file. -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%2310b981'/%3E%3Cstop offset='100%25' stop-color='%23f97316'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='512' height='512' rx='118' fill='%23090d16'/%3E%3Crect x='24' y='24' width='464' height='464' rx='100' fill='none' stroke='url(%23g)' stroke-width='20'/%3E%3Cpath d='M116 196v120M168 156v200M344 156v200M396 196v120M168 256h176' stroke='url(%23g)' stroke-width='36' stroke-linecap='round'/%3E%3C/svg%3E">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+
+    <!-- Web App Manifest -->
+    <link rel="manifest" href="manifest.webmanifest">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        gym: {
+                            50: '#ecfdf5',
+                            100: '#d1fae5',
+                            400: '#34d399',
+                            500: '#10b981',
+                            600: '#059669',
+                            700: '#047857',
+                        },
+                        hiit: {
+                            400: '#fb923c',
+                            500: '#f97316',
+                            600: '#ea580c',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            padding-top: env(safe-area-inset-top, 0px);
+            padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 4.5rem);
+            padding-left: env(safe-area-inset-left, 0px);
+            padding-right: env(safe-area-inset-right, 0px);
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.25);
+            border-radius: 9999px;
+        }
+        @keyframes popScale {
+            0% { transform: scale(0.86); }
+            50% { transform: scale(1.08); }
+            100% { transform: scale(1); }
+        }
+        .animate-pop {
+            animation: popScale 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        @keyframes pulseGlow {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.55; }
+        }
+        .animate-pulse-fast {
+            animation: pulseGlow 1.1s infinite ease-in-out;
+        }
+        /* Hide number input spinners for clean mobile ergonomics */
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+        /* Expandable history cards: hide the native disclosure triangle */
+        summary::-webkit-details-marker {
+            display: none;
+        }
+        summary {
+            list-style: none;
+        }
+        /* PB celebration */
+        @keyframes pbPop {
+            0% { transform: scale(0.6); opacity: 0; }
+            60% { transform: scale(1.06); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-pb-pop {
+            animation: pbPop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+        }
+        @keyframes confettiFall {
+            0% { transform: translate3d(0, -10vh, 0) rotate(0deg); opacity: 1; }
+            100% { transform: translate3d(var(--drift, 0px), 105vh, 0) rotate(720deg); opacity: 0.85; }
+        }
+        .confetti-piece {
+            position: absolute;
+            top: 0;
+            width: 8px;
+            height: 12px;
+            border-radius: 2px;
+            animation: confettiFall linear forwards;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .confetti-piece { display: none; }
+            .animate-pb-pop, .animate-pop { animation: none; }
+        }
+        /* Tall modals: the overlay is padded clear of the Dynamic Island & home indicator, the sheet fills the rest */
+        .modal-sheet {
+            max-height: 100%;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 dark:bg-[#090d16] text-slate-900 dark:text-slate-100 min-h-screen selection:bg-gym-500 selection:text-white transition-colors duration-200">
+
+    <!-- MAIN CONTAINER -->
+    <div class="max-w-[1440px] mx-auto px-2.5 sm:px-5 py-2.5 sm:py-4 flex flex-col gap-3">
+
+        <!-- TOP NAVIGATION BAR (Streamlined Single-Row Brand & Utility Bar for iPhone 17) -->
+        <header class="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200/80 dark:border-slate-800/80 rounded-2xl px-3 sm:px-4 py-2.5 shadow-sm">
+            <div class="flex items-center justify-between gap-2">
+                <!-- Left: Compact Logo + Title with Sync Dot & Short Date Underneath -->
+                <div class="flex items-center gap-2.5 min-w-0">
+                    <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-gym-500 to-hiit-500 flex items-center justify-center text-white shadow-md shadow-gym-500/20 shrink-0">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 10v4M7 7v10M17 7v10M21 10v4M7 12h10"/>
+                        </svg>
+                    </div>
+                    <div class="min-w-0">
+                        <h1 class="font-extrabold text-base sm:text-lg tracking-tight leading-none truncate">PulseGym</h1>
+                        <div class="flex items-center gap-1.5 mt-1">
+                            <div id="sync-status-pill" class="inline-flex items-center gap-1 text-gym-600 dark:text-gym-400 text-[11px] font-semibold leading-none shrink-0 transition-all">
+                                <span id="sync-status-dot" class="w-1.5 h-1.5 rounded-full bg-gym-500"></span>
+                                <span id="sync-status-text">Saved</span>
+                            </div>
+                            <span class="text-slate-300 dark:text-slate-700 text-[10px] leading-none">•</span>
+                            <p id="current-date-display" class="text-[11px] font-medium text-slate-500 dark:text-slate-400 truncate leading-none">Loading...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Clean 34x34px Utility Icon Bar (No Overflow on Mobile) -->
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <!-- KG / LBS Compact Pill -->
+                    <button onclick="toggleWeightUnit()" id="unit-toggle-btn" title="Switch kg / lbs" class="h-[34px] px-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-extrabold font-mono flex items-center justify-center transition-colors">
+                        KG
+                    </button>
+
+                    <!-- Gym Reminders Bell (34x34px) -->
+                    <button onclick="openRemindersModal()" title="Gym Reminders & iPhone Calendar Alarms" class="w-[34px] h-[34px] rounded-xl text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 flex items-center justify-center transition-colors">
+                        <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.1">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                        </svg>
+                    </button>
+
+                    <!-- App / Export & Backup (34x34px on Mobile, Label on Desktop) -->
+                    <button onclick="openBackupModal()" title="Install iPhone App, Download HTML & Backup" class="h-[34px] w-[34px] sm:w-auto sm:px-3 rounded-xl text-gym-600 dark:text-gym-400 bg-gym-500/10 hover:bg-gym-500/20 border border-gym-500/20 transition-colors text-xs font-bold flex items-center justify-center gap-1.5">
+                        <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.1">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                        </svg>
+                        <span class="hidden sm:inline">App / Export</span>
+                    </button>
+
+                    <!-- Reset Modal (34x34px) -->
+                    <button onclick="openModal('reset-modal')" title="Reset or Clear Data" class="w-[34px] h-[34px] rounded-xl text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 flex items-center justify-center transition-colors">
+                        <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.1">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                    </button>
+
+                    <!-- Theme Toggle (34x34px) -->
+                    <button onclick="toggleTheme()" aria-label="Toggle Theme" class="w-[34px] h-[34px] rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center transition-colors">
+                        <span id="theme-icon"></span>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- BACKUP REMINDER (shown when new workouts haven't been backed up for a while) -->
+        <div id="backup-reminder" class="hidden rounded-2xl px-3.5 py-3 bg-indigo-500/10 border border-indigo-500/25 flex items-center justify-between gap-3">
+            <div class="min-w-0">
+                <p class="text-xs font-extrabold text-indigo-600 dark:text-indigo-300">💾 Backup due</p>
+                <p id="backup-reminder-text" class="text-[11px] text-slate-600 dark:text-slate-300 mt-0.5 leading-snug">Your workouts only live on this phone. Save a copy to Files.</p>
+            </div>
+            <div class="flex items-center gap-1 shrink-0">
+                <button type="button" onclick="snoozeBackupReminder()" class="px-2.5 py-2 rounded-xl text-[11px] font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-900/5 dark:hover:bg-white/5">Later</button>
+                <button type="button" onclick="downloadJsonBackup()" class="px-3 py-2 rounded-xl text-[11px] font-extrabold bg-indigo-500 hover:bg-indigo-600 text-white shadow-sm">Save backup</button>
+            </div>
+        </div>
+
+        <!-- 4 KPI SUMMARY CARDS (2x2 on Phone, 4 Columns on Desktop) -->
+        <section class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+            <!-- KPI 1: Weekly 4-Session Target -->
+            <div class="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-3 sm:p-3.5 shadow-sm flex flex-col justify-between">
+                <div class="flex items-center justify-between gap-2">
+                    <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Weekly Split</span>
+                    <div class="w-7 h-7 rounded-lg bg-gym-500/10 text-gym-500 flex items-center justify-center shrink-0">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="mt-1.5 flex items-baseline justify-between gap-2">
+                    <h2 id="kpi-sessions-done" class="text-xl sm:text-2xl font-extrabold tracking-tight whitespace-nowrap">0 / 4</h2>
+                    <span id="kpi-sessions-pct" class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-gym-500/10 text-gym-600 dark:text-gym-400 truncate">0% Done</span>
+                </div>
+                <div class="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden mt-2">
+                    <div id="kpi-sessions-bar" class="h-full bg-gradient-to-r from-gym-500 to-teal-400 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- KPI 2: 10-Min Assault Bike Pre-Lift Warmups -->
+            <div class="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-3 sm:p-3.5 shadow-sm flex flex-col justify-between">
+                <div class="flex items-center justify-between gap-2">
+                    <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Assault Bike HIIT</span>
+                    <div class="w-7 h-7 rounded-lg bg-hiit-500/15 text-hiit-500 flex items-center justify-center shrink-0">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="mt-1.5 flex items-baseline justify-between gap-2">
+                    <h2 id="kpi-hiit-done" class="text-xl sm:text-2xl font-extrabold tracking-tight whitespace-nowrap">0 / 3</h2>
+                    <span id="kpi-hiit-cals" class="text-[10px] font-bold text-hiit-500 truncate">0 kcal / 0W</span>
+                </div>
+                <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-1.5 truncate">10m Pre-Weights Warmups</p>
+            </div>
+
+            <!-- KPI 3: Weekly Volume Lifted -->
+            <div class="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-3 sm:p-3.5 shadow-sm flex flex-col justify-between">
+                <div class="flex items-center justify-between gap-2">
+                    <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Weekly Volume</span>
+                    <div class="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-500 flex items-center justify-center shrink-0">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 10v4M7 7v10M17 7v10M21 10v4M7 12h10"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="mt-1.5 flex items-baseline justify-between gap-2">
+                    <h2 id="kpi-weekly-volume" class="text-xl sm:text-2xl font-extrabold tracking-tight whitespace-nowrap font-mono">0 kg</h2>
+                    <span id="kpi-sets-completed" class="text-[10px] font-bold text-indigo-500 truncate">0 sets logged</span>
+                </div>
+                <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-1.5 truncate">Total weight × reps this week</p>
+            </div>
+
+            <!-- KPI 4: Active Weekly Consistency Streak -->
+            <div class="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-3 sm:p-3.5 shadow-sm flex flex-col justify-between">
+                <div class="flex items-center justify-between gap-2">
+                    <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Gym Streak</span>
+                    <div class="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="mt-1.5 flex items-baseline justify-between gap-2">
+                    <h2 id="kpi-week-streak" class="text-xl sm:text-2xl font-extrabold tracking-tight whitespace-nowrap">0 wks</h2>
+                    <span id="kpi-total-workouts" class="text-[10px] font-bold text-amber-500 truncate">0 total logged</span>
+                </div>
+                <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-1.5 truncate">Active training weeks</p>
+            </div>
+        </section>
+
+        <!-- WEEK NAVIGATION & 4-SESSION SELECTOR BAR (Compact & Crisp Mobile Layout) -->
+        <section class="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-2.5 sm:p-3.5 shadow-sm">
+            <div class="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-100 dark:border-slate-800/80">
+                <div class="flex items-center gap-1.5 min-w-0">
+                    <span class="text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 truncate">4-Day Split</span>
+                    <span id="active-week-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gym-500/10 text-gym-600 dark:text-gym-400 border border-gym-500/20 shrink-0">This Wk</span>
+                </div>
+
+                <!-- Compact Single-Row Week Switcher -->
+                <div class="inline-flex items-center bg-slate-100 dark:bg-slate-800/90 rounded-xl p-0.5 border border-slate-200/60 dark:border-slate-700/60 shrink-0">
+                    <button onclick="changeWeek(-1)" title="Previous Week" class="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+                        </svg>
+                    </button>
+                    <button onclick="resetToCurrentWeek()" id="week-range-label" class="px-2.5 py-1 text-[11px] font-bold text-slate-700 dark:text-slate-200 whitespace-nowrap">
+                        Oct 12 – Oct 18
+                    </button>
+                    <button onclick="changeWeek(1)" title="Next Week" class="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 4-Session Pills Grid (Crisp 2x2 on Phone, 4 Columns on Desktop) -->
+            <div id="session-tabs-grid" class="grid grid-cols-2 lg:grid-cols-4 gap-2 mt-2.5">
+                <!-- Populated dynamically -->
+            </div>
+
+            <!-- Workout History Entry Point -->
+            <button type="button" onclick="openHistoryModal()" class="mt-2 w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                <span class="flex items-center gap-2 text-xs font-extrabold text-slate-700 dark:text-slate-200">
+                    <svg class="w-4 h-4 text-indigo-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    Workout History
+                </span>
+                <span class="flex items-center gap-1 text-[11px] font-semibold text-slate-400">
+                    <span id="history-count-label">0 logged</span>
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                </span>
+            </button>
+        </section>
+
+        <!-- MAIN WORKSPACE GRID: Left (Active Workout & Assault Bike HIIT) + Right (Progress Charts & History) -->
+        <div class="grid grid-cols-1 xl:grid-cols-12 gap-3 items-start">
+
+            <!-- LEFT COLUMN (8 Cols on XL): Active Session Logger -->
+            <section id="session-logger" style="scroll-margin-top: calc(env(safe-area-inset-top, 0px) + 0.75rem);" class="xl:col-span-8 flex flex-col gap-3">
+
+                <!-- MANDATORY 10-MIN ASSAULT BIKE HIIT WARMUP BANNER (Shown for Sessions 1, 2 & 3) -->
+                <div id="assault-bike-banner" class="rounded-2xl p-3.5 sm:p-4 bg-gradient-to-br from-orange-500/15 via-amber-500/10 to-emerald-500/10 border-2 border-hiit-500/40 dark:border-hiit-500/40 shadow-sm transition-all">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <!-- Left: Title & Check-off Button -->
+                        <div class="flex items-start gap-3">
+                            <button type="button" id="hiit-complete-btn" onclick="toggleAssaultBikeWarmup()"
+                                class="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 border-2 transition-all active:scale-95">
+                                <!-- Populated dynamically -->
+                            </button>
+                            <div class="min-w-0">
+                                <div class="flex items-center flex-wrap gap-1.5">
+                                    <span class="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-hiit-500 text-white">Pre-Weights Mandatory</span>
+                                    <span id="hiit-status-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-900/10 dark:bg-white/10 text-slate-700 dark:text-slate-200">Pending</span>
+                                </div>
+                                <h3 class="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white mt-1">10 Mins Assault Bike HIIT Warmup</h3>
+                                <p class="text-[11px] text-slate-600 dark:text-slate-300">Complete your 10-minute Assault Bike intervals before starting the weights below.</p>
+                            </div>
+                        </div>
+
+                        <!-- Right: Built-in 10:00 HIIT Timer -->
+                        <div class="flex items-center justify-between sm:justify-end gap-2 bg-white/85 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 px-3 py-2 rounded-2xl shrink-0">
+                            <div class="text-left sm:text-right pr-1">
+                                <div class="flex items-center gap-1.5">
+                                    <span id="hiit-phase-pill" class="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-hiit-500/20 text-hiit-500">READY</span>
+                                    <span class="text-[10px] font-semibold text-slate-400">10m HIIT</span>
+                                </div>
+                                <div id="hiit-timer-display" class="text-lg sm:text-xl font-black font-mono tracking-tight text-slate-900 dark:text-white leading-tight">10:00</div>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <button type="button" onclick="toggleHiitTimer()" id="hiit-start-btn" class="px-3 py-2 rounded-xl text-xs font-extrabold bg-hiit-500 hover:bg-hiit-600 text-white shadow-sm transition-all">
+                                    Start
+                                </button>
+                                <button type="button" onclick="resetHiitTimer()" title="Reset 10:00 Timer" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Assault Bike Telemetry Row (Calories, Avg/Peak Watts, Notes) -->
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3 pt-3 border-t border-slate-900/10 dark:border-white/10">
+                        <div class="bg-white/75 dark:bg-slate-900/75 rounded-xl px-3 py-1.5 border border-slate-200/70 dark:border-slate-800 flex items-center justify-between gap-2">
+                            <label for="hiit-cals-input" class="text-[10px] font-bold uppercase whitespace-nowrap text-slate-500 dark:text-slate-400">Cals</label>
+                            <div class="flex items-center gap-1 min-w-0">
+                                <input type="text" inputmode="numeric" autocomplete="off" id="hiit-cals-input" onchange="saveAssaultBikeStats()" placeholder="0"
+                                    class="w-14 min-w-0 text-right font-mono font-extrabold text-xs sm:text-sm bg-transparent focus:outline-none text-hiit-600 dark:text-hiit-400">
+                                <span class="text-[10px] font-semibold text-slate-400">kcal</span>
+                            </div>
+                        </div>
+
+                        <div class="bg-white/75 dark:bg-slate-900/75 rounded-xl px-3 py-1.5 border border-slate-200/70 dark:border-slate-800 flex items-center justify-between gap-2">
+                            <label for="hiit-watts-input" class="text-[10px] font-bold uppercase whitespace-nowrap text-slate-500 dark:text-slate-400">Max Watts</label>
+                            <div class="flex items-center gap-1 min-w-0">
+                                <input type="text" inputmode="numeric" autocomplete="off" id="hiit-watts-input" onchange="saveAssaultBikeStats()" placeholder="0"
+                                    class="w-14 min-w-0 text-right font-mono font-extrabold text-xs sm:text-sm bg-transparent focus:outline-none text-gym-600 dark:text-gym-400">
+                                <span class="text-[10px] font-semibold text-slate-400">W</span>
+                            </div>
+                        </div>
+
+                        <div class="col-span-2 sm:col-span-1 bg-white/75 dark:bg-slate-900/75 rounded-xl px-3 py-1.5 border border-slate-200/70 dark:border-slate-800 flex items-center justify-between gap-2">
+                            <span class="text-[10px] font-bold uppercase whitespace-nowrap text-slate-500 dark:text-slate-400">All-Time Bike PB</span>
+                            <span id="hiit-pb-label" class="text-xs font-extrabold font-mono text-amber-500">0 kcal</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ACTIVE SESSION EXERCISES CARD -->
+                <div class="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl shadow-sm overflow-hidden">
+                    <!-- Session Header (Now Houses the Primary "+ Exercise" Action) -->
+                    <div class="p-3 sm:px-4 border-b border-slate-100 dark:border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <h2 id="active-session-title" class="text-base sm:text-lg font-extrabold tracking-tight truncate">1. Chest & Triceps</h2>
+                                <span id="active-session-badge" class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 shrink-0">In Progress</span>
+                            </div>
+                            <p id="active-session-subtitle" class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Tap ✓ on each set to log & auto-start the rest timer</p>
+                        </div>
+
+                        <div class="flex items-center gap-2 shrink-0">
+                            <button type="button" onclick="openAddExerciseModal()" class="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1 px-3 py-2 rounded-xl text-xs font-extrabold bg-gym-500/15 hover:bg-gym-500/25 text-gym-600 dark:text-gym-400 border border-gym-500/25 transition-colors">
+                                <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                                <span>Exercise</span>
+                            </button>
+                            <button type="button" onclick="toggleSessionCompleted()" id="finish-session-top-btn" class="flex-1 sm:flex-initial px-3.5 py-2 rounded-xl text-xs font-extrabold bg-gym-600 hover:bg-gym-500 text-white shadow-sm transition-all text-center">
+                                Complete Session ✓
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Exercises List Container -->
+                    <div id="exercises-list-container" class="p-2.5 sm:p-4 space-y-3">
+                        <!-- Populated dynamically -->
+                    </div>
+
+                    <!-- Bottom Session Completion Bar -->
+                    <div class="p-3.5 sm:px-4 bg-slate-50/80 dark:bg-slate-800/30 border-t border-slate-100 dark:border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-3">
+                        <div class="text-xs text-slate-500 dark:text-slate-400 text-center sm:text-left">
+                            <span id="session-footer-summary" class="font-semibold text-slate-700 dark:text-slate-200">0 sets completed</span> • Auto-saved to permanent storage
+                        </div>
+                        <button type="button" onclick="toggleSessionCompleted()" id="finish-session-bottom-btn" class="w-full sm:w-auto px-6 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold bg-gradient-to-r from-gym-600 to-teal-500 hover:from-gym-500 hover:to-teal-400 text-white shadow-md shadow-gym-600/20 active:scale-[0.99] transition-all flex items-center justify-center gap-2">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                            <span>Finish & Mark Session Complete</span>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- RIGHT COLUMN (4 Cols on XL): Progress Analytics, Strength Curve & Workout History -->
+            <aside class="xl:col-span-4 flex flex-col gap-3">
+
+                <!-- CHART 1: Weekly 4-Session Consistency & HIIT Bar Chart -->
+                <div class="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-3.5 sm:p-4 shadow-sm">
+                    <div class="flex items-center justify-between gap-2 mb-3">
+                        <div>
+                            <h3 class="text-xs sm:text-sm font-bold tracking-tight">Weekly Split Consistency</h3>
+                            <p class="text-[11px] text-slate-400 dark:text-slate-500">Last 6 weeks (Target: 4 sessions/wk)</p>
+                        </div>
+                        <span id="consistency-avg-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-gym-500/10 text-gym-600 dark:text-gym-400">
+                            Avg: 0/4
+                        </span>
+                    </div>
+
+                    <div id="consistency-chart-bars" class="h-32 pt-3 pb-1 grid grid-cols-6 gap-2 items-end select-none">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- CHART 2: Progressive Overload & Assault Bike Output Tracker -->
+                <div class="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-3.5 sm:p-4 shadow-sm">
+                    <div class="flex items-center justify-between gap-2 mb-2.5">
+                        <div>
+                            <h3 class="text-xs sm:text-sm font-bold tracking-tight">Strength & HIIT Progression</h3>
+                            <p class="text-[11px] text-slate-400 dark:text-slate-500">Best set each week or Assault Bike output</p>
+                        </div>
+                        <span id="strength-pb-pill" class="text-[10px] font-extrabold font-mono px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                            PB: -
+                        </span>
+                    </div>
+
+                    <!-- Exercise Selector Dropdown for Chart -->
+                    <select id="chart-exercise-select" onchange="renderStrengthChart()"
+                        class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-gym-500 mb-3">
+                        <!-- Populated dynamically -->
+                    </select>
+
+                    <!-- Progression Visual Bars -->
+                    <div id="strength-chart-bars" class="h-32 pt-3 pb-1 grid grid-cols-6 gap-2 items-end select-none">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- PERSONAL BESTS (PB) & RECENT LOGS LEADERBOARD -->
+                <div class="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-3.5 sm:p-4 shadow-sm">
+                    <div class="flex items-center justify-between gap-2 mb-2.5">
+                        <div>
+                            <h3 class="text-xs sm:text-sm font-bold tracking-tight">Session Personal Bests</h3>
+                            <p class="text-[11px] text-slate-400 dark:text-slate-500">Heaviest top sets for current split</p>
+                        </div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 border border-indigo-500/20">
+                            PR Board
+                        </span>
+                    </div>
+
+                    <div id="pb-leaderboard" class="space-y-2">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+
+            </aside>
+        </div>
+    </div>
+
+    <!-- FLOATING REST TIMER BAR (Fixed at Bottom for Easy Thumb Access During Lifting) -->
+    <div id="floating-rest-bar" style="bottom: calc(env(safe-area-inset-bottom, 0px) + 0.5rem);" class="fixed inset-x-3 max-w-md mx-auto z-40 bg-slate-900/95 dark:bg-slate-800/95 backdrop-blur-md text-white border border-slate-700/80 rounded-2xl px-3.5 py-2.5 shadow-2xl flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2.5 min-w-0">
+            <div class="w-8 h-8 rounded-xl bg-gym-500/20 text-gym-400 flex items-center justify-center shrink-0">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+            </div>
+            <div>
+                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Rest Timer</div>
+                <div id="rest-timer-display" class="text-sm sm:text-base font-black font-mono leading-none mt-0.5">01:30</div>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-1">
+            <button onclick="startRestTimer(60)" id="rest-bar-60" class="px-2 py-1.5 rounded-lg text-[11px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-300">60s</button>
+            <button onclick="startRestTimer(90)" id="rest-bar-90" class="px-2 py-1.5 rounded-lg text-[11px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-300">90s</button>
+            <button onclick="startRestTimer(120)" id="rest-bar-120" class="px-2 py-1.5 rounded-lg text-[11px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-300">2m</button>
+            <button onclick="toggleRestTimer()" id="rest-toggle-btn" class="px-2.5 py-1.5 rounded-lg text-[11px] font-extrabold bg-gym-500 hover:bg-gym-400 text-slate-950 ml-0.5">Start</button>
+        </div>
+    </div>
+
+    <!-- MODAL 1: ADD / EDIT EXERCISE -->
+    <div id="exercise-modal" style="padding-top: calc(env(safe-area-inset-top, 0px) + 0.75rem); padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem);" class="fixed inset-0 z-50 hidden items-center justify-center px-4 bg-slate-950/70 backdrop-blur-sm">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full p-5 shadow-2xl modal-sheet overflow-y-auto overscroll-contain">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                <h3 id="exercise-modal-title" class="text-base font-bold">Add Exercise</h3>
+                <button onclick="closeModal('exercise-modal')" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <form onsubmit="handleExerciseSubmit(event)" class="mt-4 space-y-3.5">
+                <input type="hidden" id="exercise-id-input">
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Target Session</label>
+                    <select id="exercise-session-input" onchange="handleExerciseSessionChange()" class="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-gym-500">
+                        <option value="session-1">1. Chest & Triceps</option>
+                        <option value="session-2">2. Back & Biceps</option>
+                        <option value="session-3">3. Shoulders & Legs</option>
+                        <option value="session-4">4. Cardio & Conditioning</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Exercise Name</label>
+                    <input type="text" id="exercise-name-input" required maxlength="65" placeholder="e.g., Incline Dumbbell Bench Press"
+                        class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-gym-500">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Default Sets</label>
+                        <select id="exercise-sets-input" class="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-gym-500">
+                            <option value="1">1 Set / Block</option>
+                            <option value="2">2 Sets</option>
+                            <option value="3" selected>3 Sets</option>
+                            <option value="4">4 Sets</option>
+                            <option value="5">5 Sets</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Rest Between Sets</label>
+                        <select id="exercise-rest-input" class="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-gym-500">
+                            <option value="0">No timer</option>
+                            <option value="30">30 sec</option>
+                            <option value="45">45 sec</option>
+                            <option value="60">1:00</option>
+                            <option value="75">1:15</option>
+                            <option value="90" selected>1:30</option>
+                            <option value="120">2:00</option>
+                            <option value="150">2:30</option>
+                            <option value="180">3:00</option>
+                            <option value="240">4:00</option>
+                            <option value="300">5:00</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Target Reps / Time</label>
+                    <input type="text" id="exercise-target-input" required maxlength="40" placeholder="e.g., 8-10 reps or 15 mins"
+                        class="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-gym-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">What to Track Each Set</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <select id="exercise-track-a-input" aria-label="First measurement" onchange="exerciseTrackTouched = true"
+                            class="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-gym-500">
+                            <!-- Populated dynamically -->
+                        </select>
+                        <select id="exercise-track-b-input" aria-label="Second measurement" onchange="exerciseTrackTouched = true"
+                            class="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-gym-500">
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+                    <p id="exercise-track-note" class="text-[11px] text-slate-400 mt-1">e.g. Distance + Time for the rower, Calories + Watts for the bike, Reps + Nothing for ab work.</p>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Muscle / Block Tag</label>
+                    <input type="text" id="exercise-tag-input" maxlength="25" placeholder="e.g., Chest, Triceps, Back, Legs, HIIT"
+                        class="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-gym-500">
+                </div>
+
+                <div class="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2">
+                    <button type="button" onclick="closeModal('exercise-modal')" class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">Cancel</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl text-xs font-bold bg-gym-600 hover:bg-gym-500 text-white shadow-md shadow-gym-600/25">Save Exercise</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 2: IPHONE 17 APP / EXPORT & BACKUP -->
+    <div id="backup-modal" style="padding-top: calc(env(safe-area-inset-top, 0px) + 0.75rem); padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem);" class="fixed inset-0 z-50 hidden items-center justify-center px-3 sm:px-4 bg-slate-950/70 backdrop-blur-sm overflow-y-auto">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-lg w-full p-4 sm:p-5 shadow-2xl my-auto modal-sheet overflow-y-auto">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-gym-500/10 text-gym-500 flex items-center justify-center shrink-0">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-sm sm:text-base font-bold">Install iPhone 17 App & Backup</h3>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400">Deploy to Netlify Drop or backup your workout logs</p>
+                    </div>
+                </div>
+                <button onclick="closeModal('backup-modal')" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <div class="mt-3.5 space-y-4">
+                <!-- 1-Tap Standalone HTML Download -->
+                <div class="p-3.5 rounded-2xl bg-gradient-to-br from-gym-500/10 to-hiit-500/10 border border-gym-500/30">
+                    <span class="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-gym-600 text-white">iPhone 17 Ready</span>
+                    <h4 class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white mt-1.5">1. Download Standalone App File (<code class="font-mono text-gym-500">index.html</code>)</h4>
+                    <p class="text-[11px] text-slate-600 dark:text-slate-300 mt-0.5 leading-relaxed">
+                        Downloads this entire app as <code class="font-mono">index.html</code> with <strong>your custom exercises, logged weights, and Assault Bike history permanently baked into its starting code</strong>. On iPhone, choose <strong>Save to Files</strong>.
+                    </p>
+                    <button type="button" onclick="downloadEmbeddedHtmlApp()" class="mt-3 w-full py-2.5 px-4 rounded-xl text-xs font-bold bg-gym-600 hover:bg-gym-500 text-white shadow-md shadow-gym-600/25 flex items-center justify-center gap-2 transition-all">
+                        <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.3"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                        <span>Download index.html (With Workouts Embedded)</span>
+                    </button>
+                </div>
+
+                <!-- Quick iPhone 17 Netlify Drop Reminder -->
+                <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 space-y-1.5">
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">2. iPhone 17 Files → Netlify Steps</h4>
+                    <ol class="text-[11px] text-slate-600 dark:text-slate-300 space-y-1 list-decimal list-inside leading-relaxed">
+                        <li>In <strong>Files</strong>, put <code class="font-mono text-gym-500">index.html</code> in your <strong>PulseGym</strong> folder, next to <code class="font-mono">sw.js</code>, <code class="font-mono">manifest.webmanifest</code> &amp; the icon PNGs (replace the old one).</li>
+                        <li>Long-press the <strong>PulseGym</strong> folder → tap <strong>Compress</strong> to create <strong>PulseGym.zip</strong>.</li>
+                        <li>Updating? In Netlify open your existing site → <strong>Deploys</strong> → upload the zip. <strong>Keeping the same URL keeps the workouts saved on this phone.</strong></li>
+                        <li>New site? Upload at <strong>app.netlify.com/drop</strong>, open the link in Safari, then <strong>Share → Add to Home Screen</strong>.</li>
+                    </ol>
+                </div>
+
+                <!-- Clipboard & JSON Backup -->
+                <div class="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-3">
+                    <div class="flex items-center justify-between gap-2">
+                        <div>
+                            <label class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">3. Backup Code or .JSON File</label>
+                            <p id="last-backup-label" class="text-[11px] text-slate-400 mt-0.5">Last backup: never</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="downloadJsonBackup()" class="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200">Save .json</button>
+                            <label class="cursor-pointer text-[11px] font-bold px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200">
+                                <span>Load .json</span>
+                                <input type="file" accept=".json,application/json" onchange="uploadJsonBackup(event)" class="hidden">
+                            </label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-[11px] text-slate-500 dark:text-slate-400">One-Tap Backup Code:</span>
+                            <button type="button" onclick="copyBackupCode()" class="text-xs font-bold text-gym-600 dark:text-gym-400 hover:underline">Copy Code</button>
+                        </div>
+                        <textarea id="backup-export-textarea" readonly rows="2" class="w-full p-2 rounded-xl bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 text-[10px] font-mono text-slate-600 dark:text-slate-300 select-all"></textarea>
+                    </div>
+
+                    <div class="flex gap-2">
+                        <input type="text" id="backup-import-input" placeholder="Paste backup code here to restore..." class="flex-1 px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 text-xs font-mono">
+                        <button type="button" onclick="restoreFromBackupCode()" class="px-4 py-2 rounded-xl text-xs font-bold bg-gym-600 hover:bg-gym-500 text-white shrink-0">Restore</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 3: GYM REMINDERS & IPHONE CALENDAR ALARMS (.ICS) -->
+    <div id="reminders-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full p-5 shadow-2xl">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-500 flex items-center justify-center">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                    </div>
+                    <div>
+                        <h3 class="text-sm sm:text-base font-bold">Gym Reminders & Alarms</h3>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400">Schedule your 4 weekly gym sessions</p>
+                    </div>
+                </div>
+                <button onclick="closeModal('reminders-modal')" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <div class="mt-4 space-y-3.5">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">Preferred Gym Time</label>
+                        <input type="time" id="gym-reminder-time" value="17:30" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-mono font-bold">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">Pre-Session Alert</label>
+                        <select id="gym-reminder-lead" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold">
+                            <option value="15">15 mins before</option>
+                            <option value="30" selected>30 mins before</option>
+                            <option value="60">1 hour before</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 space-y-2">
+                    <h4 class="text-xs font-bold text-amber-600 dark:text-amber-400">1-Tap iPhone 17 Lock-Screen Gym Alarms (.ics)</h4>
+                    <p class="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                        Installs recurring weekly alerts for <strong>Mon (Chest & Tris + 10m HIIT)</strong>, <strong>Tue (Back & Bis + 10m HIIT)</strong>, <strong>Thu (Shoulders & Legs + 10m HIIT)</strong>, and <strong>Sat (Cardio)</strong> directly into your iPhone Calendar.
+                    </p>
+                    <button type="button" onclick="downloadGymIcsAlarms()" class="w-full py-2.5 px-3 rounded-xl text-xs font-extrabold bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-sm transition-all">
+                        Install 4-Day Split iPhone Alarms (.ics)
+                    </button>
+                </div>
+
+                <div class="flex items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <button type="button" onclick="sendTestGymNotification()" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200">
+                        Test Push Banner
+                    </button>
+                    <button type="button" onclick="closeModal('reminders-modal')" class="px-4 py-2 rounded-xl text-xs font-bold bg-gym-600 text-white">
+                        Done
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 4: RESET OPTIONS -->
+    <div id="reset-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full p-5 shadow-2xl">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                <h3 class="text-base font-bold">Manage & Reset Gym Data</h3>
+                <button onclick="closeModal('reset-modal')" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <div class="mt-4 space-y-2.5">
+                <button onclick="clearCurrentWeekWorkoutLogs()" class="w-full text-left p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 transition-all">
+                    <p class="text-xs font-bold text-amber-600 dark:text-amber-400">Clear This Week's Logs Only</p>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Resets checkmarks and HIIT status for the currently selected week while keeping past weeks intact.</p>
+                </button>
+
+                <button onclick="clearAllWorkoutHistory()" class="w-full text-left p-3.5 rounded-xl border border-rose-500/30 bg-rose-500/5 hover:bg-rose-500/10 transition-all">
+                    <p class="text-xs font-bold text-rose-600 dark:text-rose-400">Clear All Logged Weights & History (Start at 0)</p>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Keeps your 4-day split and custom exercises, but wipes all historical sets and HIIT logs.</p>
+                </button>
+
+                <button onclick="restoreDefaultSplitDNA()" class="w-full text-left p-3.5 rounded-xl border border-gym-500/30 bg-gym-500/5 hover:bg-gym-500/10 transition-all">
+                    <p class="text-xs font-bold text-gym-600 dark:text-gym-400">Restore Default 4-Day Split Exercises</p>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Restores the default Chest/Tris, Back/Bis, Shoulders/Legs, and Cardio exercise list.</p>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 5: WORKOUT HISTORY -->
+    <div id="history-modal" onclick="if (event.target === this) closeModal('history-modal')" style="padding-top: calc(env(safe-area-inset-top, 0px) + 0.75rem); padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem);" class="fixed inset-0 z-50 hidden items-center justify-center px-3 sm:px-4 bg-slate-950/70 backdrop-blur-sm">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-lg w-full shadow-2xl modal-sheet flex flex-col overflow-hidden">
+            <div class="px-4 pt-4 pb-3 border-b border-slate-100 dark:border-slate-800 shrink-0">
+                <div class="flex items-center justify-between gap-2">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <div class="w-9 h-9 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center shrink-0">
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        </div>
+                        <div class="min-w-0">
+                            <h3 class="text-sm sm:text-base font-bold">Workout History</h3>
+                            <p id="history-subtitle" class="text-[11px] text-slate-500 dark:text-slate-400">0 sessions logged</p>
+                        </div>
+                    </div>
+                    <button onclick="closeModal('history-modal')" aria-label="Close history" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+                <!-- Filter by training day -->
+                <div id="history-filters" class="flex gap-1.5 mt-3 overflow-x-auto no-scrollbar">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+            <div id="history-list" class="p-3 sm:p-4 overflow-y-auto overscroll-contain space-y-2">
+                <!-- Populated dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST CONTAINER -->
+    <div id="toast-container" style="top: calc(env(safe-area-inset-top, 0px) + 1rem);" class="fixed right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- CORE APPLICATION LOGIC -->
+    <script>
+        /**************************************************************
+         * 1. PERMANENT DEFAULT 4-DAY SPLIT & ASSAULT BIKE DNA
+         **************************************************************/
+        const STORAGE_KEY = 'pulsegym_permanent_v1';
+
+        function createDefaultGymDNA() {
+            /* __EMBEDDED_GYM_DNA_START__ */
+            return {
+                unit: 'kg',
+                sessions: [
+                    {
+                        id: 'session-1',
+                        number: 1,
+                        name: 'Chest & Triceps',
+                        shortName: '1. Chest & Tris',
+                        type: 'weights',
+                        requiresAssaultBike: true,
+                        accent: 'emerald',
+                        exercises: [
+                            { id: 'ex-101', name: 'Barbell / Dumbbell Bench Press', tag: 'Chest', defaultSets: 3, target: '8-10 reps' },
+                            { id: 'ex-102', name: 'Incline Dumbbell Press', tag: 'Upper Chest', defaultSets: 3, target: '10-12 reps' },
+                            { id: 'ex-103', name: 'Cable / Pec Deck Chest Flyes', tag: 'Chest Isolation', defaultSets: 3, target: '12-15 reps' },
+                            { id: 'ex-104', name: 'Tricep Rope Pushdowns', tag: 'Triceps', defaultSets: 3, target: '12-15 reps' },
+                            { id: 'ex-105', name: 'Overhead Tricep Extensions / Skullcrushers', tag: 'Long Head Triceps', defaultSets: 3, target: '10-12 reps' }
+                        ]
+                    },
+                    {
+                        id: 'session-2',
+                        number: 2,
+                        name: 'Back & Biceps',
+                        shortName: '2. Back & Bis',
+                        type: 'weights',
+                        requiresAssaultBike: true,
+                        accent: 'blue',
+                        exercises: [
+                            { id: 'ex-201', name: 'Lat Pulldowns / Pull-Ups', tag: 'Lats / Width', defaultSets: 3, target: '8-10 reps' },
+                            { id: 'ex-202', name: 'Seated Cable Rows / Barbell Rows', tag: 'Mid-Back Thickness', defaultSets: 3, target: '10-12 reps' },
+                            { id: 'ex-203', name: 'Single-Arm Dumbbell Row / Face Pulls', tag: 'Upper Back & Rear Delt', defaultSets: 3, target: '12 reps' },
+                            { id: 'ex-204', name: 'Barbell / EZ-Bar Bicep Curls', tag: 'Biceps', defaultSets: 3, target: '10-12 reps' },
+                            { id: 'ex-205', name: 'Incline Dumbbell Hammer Curls', tag: 'Brachialis / Forearms', defaultSets: 3, target: '12 reps' }
+                        ]
+                    },
+                    {
+                        id: 'session-3',
+                        number: 3,
+                        name: 'Shoulders & Legs',
+                        shortName: '3. Shoulders & Legs',
+                        type: 'weights',
+                        requiresAssaultBike: true,
+                        accent: 'violet',
+                        exercises: [
+                            { id: 'ex-301', name: 'Overhead Dumbbell / Barbell Shoulder Press', tag: 'Shoulders', defaultSets: 3, target: '8-10 reps' },
+                            { id: 'ex-302', name: 'Dumbbell Lateral Raises', tag: 'Side Delts', defaultSets: 3, target: '12-15 reps' },
+                            { id: 'ex-303', name: 'Barbell Squat / Hack Squat / Leg Press', tag: 'Quads & Glutes', defaultSets: 3, target: '8-10 reps' },
+                            { id: 'ex-304', name: 'Romanian Deadlifts / Seated Hamstring Curls', tag: 'Hamstrings', defaultSets: 3, target: '10-12 reps' },
+                            { id: 'ex-305', name: 'Standing / Seated Calf Raises', tag: 'Calves', defaultSets: 3, target: '15 reps' }
+                        ]
+                    },
+                    {
+                        id: 'session-4',
+                        number: 4,
+                        name: 'Cardio & Conditioning',
+                        shortName: '4. Cardio Day',
+                        type: 'cardio',
+                        requiresAssaultBike: false,
+                        accent: 'orange',
+                        exercises: [
+                            { id: 'ex-401', name: 'Assault Bike HIIT Intervals (30s Sprint / 30s Easy)', tag: 'Assault Bike HIIT', defaultSets: 3, target: '15-20 mins (Log Cals & Watts)', track: ['cals', 'watts'] },
+                            { id: 'ex-402', name: 'Incline Treadmill Run / Concept2 Row Erg', tag: 'Aerobic Engine', defaultSets: 1, target: '20 mins (Log Speed/Dist)', track: ['km', 'mins'] },
+                            { id: 'ex-403', name: 'Ab Wheel / Hanging Leg Raises & Mobility', tag: 'Core Finisher', defaultSets: 3, target: '12-15 reps', track: ['reps', 'none'] }
+                        ]
+                    }
+                ],
+                logs: {}
+            };
+            /* __EMBEDDED_GYM_DNA_END__ */
+        }
+
+        let state = {
+            unit: 'kg',
+            sessions: [],
+            logs: {}, // keyed by weekKey (Monday YYYY-MM-DD) -> { 'session-1': { completed, hiitDone, hiitCals, hiitWatts, exercises: { 'ex-101': [{ weight, reps, done }] } } }
+            activeSessionId: 'session-1',
+            weekOffset: 0,
+            historyFilter: 'all', // 'all' or a session id
+            isCustomized: false,
+            updatedAt: 0
+        };
+
+        // Timers count down against a wall-clock end time, because iOS pauses setInterval
+        // while the screen is locked or the app is in the background.
+        let hiitTimerSeconds = 600; // 10:00
+        let hiitEndsAt = 0;
+        let hiitTimerTarget = null; // { weekKey, sessionId } the running warmup belongs to
+        let hiitTimerInterval = null;
+        let restTimerSeconds = 90;
+        let restDuration = 90; // full length of the last rest started, reused by the Start button
+        let restEndsAt = 0;
+        let restTimerInterval = null;
+
+        /**************************************************************
+         * 2. DATE KEYS & WEEK HELPERS
+         **************************************************************/
+        function formatDateKey(date) {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        function getWeekMonday(weekOffset = 0) {
+            const now = new Date();
+            const day = now.getDay();
+            const diffToMonday = day === 0 ? -6 : 1 - day;
+            return new Date(now.getFullYear(), now.getMonth(), now.getDate() + diffToMonday + (weekOffset * 7));
+        }
+
+        function getWeekKey(weekOffset = 0) {
+            return formatDateKey(getWeekMonday(weekOffset));
+        }
+
+        function getWeekRangeText(weekOffset = 0) {
+            const monday = getWeekMonday(weekOffset);
+            const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6);
+            const mShort = monday.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+            const sShort = sunday.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+            return `${mShort} – ${sShort}`;
+        }
+
+        function parseDateKey(key) {
+            const [y, m, d] = String(key).split('-').map(Number);
+            return new Date(y, m - 1, d);
+        }
+
+        function weekOffsetForKey(weekKey) {
+            const diffDays = (parseDateKey(weekKey) - getWeekMonday(0)) / 86400000;
+            return Math.round(diffDays / 7); // round absorbs daylight-saving hour shifts
+        }
+
+        // "Mon 13 Oct" for a logged day, or "Week of 13 Oct" when only the week is known
+        function formatSessionDay(dateKey, weekKey) {
+            if (dateKey) {
+                return parseDateKey(dateKey).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+            }
+            return `Week of ${parseDateKey(weekKey).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}`;
+        }
+
+        /**************************************************************
+         * 2b. WEIGHT UNITS
+         * Weights are always stored in kg; state.unit only controls display & input.
+         * (Cardio rows reuse the weight field for cals/speed, so they are never converted.)
+         **************************************************************/
+        const KG_PER_LB = 0.45359237;
+
+        function kgToDisplay(kg) {
+            return state.unit === 'lbs' ? kg / KG_PER_LB : kg;
+        }
+
+        // Stored kg string -> text shown in the current unit ("82.5", "135")
+        function formatWeight(kgValue) {
+            const kg = parseFloat(kgValue);
+            if (!isFinite(kg)) return '';
+            const places = state.unit === 'lbs' ? 10 : 100;
+            return String(Math.round(kgToDisplay(kg) * places) / places);
+        }
+
+        // Text typed in the current unit -> stored kg string (full precision, so 135 lb shows as 135 again)
+        function parseWeightInput(text) {
+            const value = parseFloat(String(text).trim().replace(/,/g, '.'));
+            if (!isFinite(value)) return '';
+            const kg = state.unit === 'lbs' ? value * KG_PER_LB : value;
+            return String(Math.round(kg * 10000) / 10000);
+        }
+
+        // Data saved before v2 stored weights in whatever unit was selected; convert lbs data to kg once
+        function migrateWeightsToKg(data) {
+            if (!data || (Number(data.dnaVersion) || 1) >= 2) return data;
+            if (data.unit === 'lbs') {
+                const cardioIds = new Set((data.sessions || []).filter(s => s.type === 'cardio').map(s => s.id));
+                Object.values(data.logs || {}).forEach(wkObj => {
+                    Object.entries(wkObj || {}).forEach(([sessionId, sLog]) => {
+                        if (cardioIds.has(sessionId)) return;
+                        Object.values(sLog?.exercises || {}).forEach(sets => {
+                            (sets || []).forEach(st => {
+                                const lbs = parseFloat(st.weight);
+                                if (isFinite(lbs)) st.weight = String(Math.round(lbs * KG_PER_LB * 10000) / 10000);
+                            });
+                        });
+                    });
+                });
+            }
+            data.dnaVersion = 2;
+            return data;
+        }
+
+        /**************************************************************
+         * 2c. WHAT EACH EXERCISE TRACKS
+         * Every exercise logs two values per set. They are stored in the set's `weight` (1st) and
+         * `reps` (2nd) fields whatever they measure, so changing the measures never touches saved logs.
+         **************************************************************/
+        const METRICS = {
+            weight:  { name: 'Weight',             header: 'Weight',        unit: '',     inputmode: 'decimal' },
+            reps:    { name: 'Reps',               header: 'Reps',          unit: 'reps', inputmode: 'numeric' },
+            mins:    { name: 'Time (mins)',        header: 'Time (min)',    unit: 'min',  inputmode: 'decimal' },
+            secs:    { name: 'Time (secs)',        header: 'Time (s)',      unit: 's',    inputmode: 'numeric' },
+            cals:    { name: 'Calories',           header: 'Cals',          unit: 'kcal', inputmode: 'numeric' },
+            watts:   { name: 'Watts',              header: 'Watts',         unit: 'W',    inputmode: 'numeric' },
+            km:      { name: 'Distance (km)',      header: 'Distance (km)', unit: 'km',   inputmode: 'decimal' },
+            metres:  { name: 'Distance (m)',       header: 'Distance (m)',  unit: 'm',    inputmode: 'numeric' },
+            miles:   { name: 'Distance (miles)',   header: 'Distance (mi)', unit: 'mi',   inputmode: 'decimal' },
+            kmh:     { name: 'Speed (km/h)',       header: 'Speed (km/h)',  unit: 'km/h', inputmode: 'decimal' },
+            mph:     { name: 'Speed (mph)',        header: 'Speed (mph)',   unit: 'mph',  inputmode: 'decimal' },
+            level:   { name: 'Level / Resistance', header: 'Level',         unit: '',     inputmode: 'decimal' },
+            incline: { name: 'Incline (%)',        header: 'Incline (%)',   unit: '%',    inputmode: 'decimal' },
+            none:    { name: 'Nothing',            header: '',              unit: '',     inputmode: 'decimal' },
+            // The original fixed cardio columns: kept so entries logged under them keep their labels
+            // until the exercise is edited (they are not offered as choices)
+            legacyCalsSpeed: { name: 'Cals / Speed', header: 'Cals / Speed', unit: '', inputmode: 'decimal', legacy: true },
+            legacyMinsWatts: { name: 'Mins / Watts', header: 'Mins / Watts', unit: '', inputmode: 'decimal', legacy: true }
+        };
+
+        function getExerciseTrack(ex, sessionType) {
+            if (Array.isArray(ex?.track) && METRICS[ex.track[0]] && METRICS[ex.track[1]]) return ex.track;
+            return sessionType === 'cardio' ? ['legacyCalsSpeed', 'legacyMinsWatts'] : ['weight', 'reps'];
+        }
+
+        function findExercise(exerciseId) {
+            for (const session of state.sessions) {
+                const ex = session.exercises.find(e => e.id === exerciseId);
+                if (ex) return { ex, session };
+            }
+            return null;
+        }
+
+        // Track for an exercise id; removed exercises fall back to the default for the day they were logged on
+        function getTrackById(exerciseId, fallbackSessionType) {
+            const found = findExercise(exerciseId);
+            return getExerciseTrack(found?.ex, found ? found.session.type : fallbackSessionType);
+        }
+
+        function isWeightReps(track) {
+            return track[0] === 'weight' && track[1] === 'reps';
+        }
+
+        function metricHeader(metric) {
+            return metric === 'weight' ? `Weight (${state.unit})` : METRICS[metric].header;
+        }
+
+        // Stored value -> text for an input (weights are converted from kg to the chosen unit)
+        function metricInputValue(metric, raw) {
+            return metric === 'weight' ? formatWeight(raw) : String(raw ?? '');
+        }
+
+        // Typed text -> stored value
+        function metricStoredValue(metric, text) {
+            return metric === 'weight' ? parseWeightInput(text) : String(text).trim().replace(/,/g, '.');
+        }
+
+        // "60kg", "5.2 km", "12 reps", "300 kcal"
+        function metricWithUnit(metric, raw) {
+            const value = metricInputValue(metric, raw) || '0';
+            if (metric === 'weight') return `${value}${state.unit}`;
+            const unit = METRICS[metric].unit;
+            return unit ? `${value} ${unit}` : value;
+        }
+
+        /**************************************************************
+         * 3. MULTI-LAYER ON-DEVICE PERSISTENCE
+         **************************************************************/
+        function saveLocalCacheOnly() {
+            const payload = {
+                dnaVersion: 2,
+                unit: state.unit,
+                sessions: state.sessions,
+                logs: state.logs,
+                isCustomized: !!state.isCustomized,
+                updatedAt: Number(state.updatedAt) || Date.now()
+            };
+            const raw = JSON.stringify(payload);
+            try { localStorage.setItem(STORAGE_KEY, raw); } catch (e) {}
+            try { sessionStorage.setItem(STORAGE_KEY, raw); } catch (e) {}
+            try { window.name = 'PULSEGYM_V1:' + raw; } catch (e) {}
+            return payload;
+        }
+
+        function readLocalCache() {
+            const candidates = [];
+            try {
+                const l = localStorage.getItem(STORAGE_KEY);
+                if (l) candidates.push(JSON.parse(l));
+            } catch (e) {}
+            try {
+                const s = sessionStorage.getItem(STORAGE_KEY);
+                if (s) candidates.push(JSON.parse(s));
+            } catch (e) {}
+            try {
+                if (window.name && window.name.startsWith('PULSEGYM_V1:')) {
+                    candidates.push(JSON.parse(window.name.slice('PULSEGYM_V1:'.length)));
+                }
+            } catch (e) {}
+
+            let newest = null;
+            for (const c of candidates) {
+                if (!c || !Array.isArray(c.sessions)) continue;
+                if (!newest || (Number(c.updatedAt) || 0) > (Number(newest.updatedAt) || 0)) {
+                    newest = c;
+                }
+            }
+            return newest;
+        }
+
+        function loadInitialState() {
+            const cached = migrateWeightsToKg(readLocalCache());
+            if (cached) {
+                state.unit = cached.unit || 'kg';
+                state.sessions = cached.sessions;
+                state.logs = cached.logs || {};
+                state.isCustomized = !!cached.isCustomized;
+                state.updatedAt = Number(cached.updatedAt) || Date.now();
+                return;
+            }
+            const defaults = migrateWeightsToKg(createDefaultGymDNA());
+            state.unit = defaults.unit || 'kg';
+            state.sessions = defaults.sessions;
+            state.logs = defaults.logs || {};
+            state.isCustomized = false;
+            state.updatedAt = 0;
+        }
+
+        function saveState() {
+            state.isCustomized = true;
+            state.updatedAt = Date.now();
+            saveLocalCacheOnly();
+            flashSyncStatus('Saved ✓');
+        }
+
+        function flashSyncStatus(label) {
+            const pill = document.getElementById('sync-status-pill');
+            const text = document.getElementById('sync-status-text');
+            if (!pill || !text) return;
+            text.textContent = label;
+            setTimeout(() => {
+                text.textContent = 'Saved';
+            }, 1000);
+        }
+
+        /**************************************************************
+         * 4. SESSION LOG STRUCTURE & PREVIOUS WEIGHT LOOKUP
+         **************************************************************/
+        function ensureSessionLog(weekKey, sessionId) {
+            if (!state.logs[weekKey]) state.logs[weekKey] = {};
+            const sessionDef = state.sessions.find(s => s.id === sessionId);
+            if (!state.logs[weekKey][sessionId]) {
+                state.logs[weekKey][sessionId] = {
+                    completed: false,
+                    hiitDone: false,
+                    hiitCals: '',
+                    hiitWatts: '',
+                    exercises: {}
+                };
+            }
+            const sLog = state.logs[weekKey][sessionId];
+            if (!sLog.exercises) sLog.exercises = {};
+
+            if (sessionDef) {
+                sessionDef.exercises.forEach(ex => {
+                    const sets = sLog.exercises[ex.id];
+                    if (!Array.isArray(sets) || sets.length === 0 || isUntouchedPrefill(sets, weekKey)) {
+                        sLog.exercises[ex.id] = buildPrefilledSets(ex, weekKey);
+                    }
+                });
+            }
+            return sLog;
+        }
+
+        // Pre-filled rows copy what was actually done last time. They stay marked `auto` until the user
+        // edits or ticks them, and are rebuilt from the latest performance every time the week is shown —
+        // so peeking at a future week can't freeze old numbers into it.
+        function buildPrefilledSets(ex, weekKey) {
+            const prevSets = getLastPerformance(ex.id, weekKey)?.sets || [];
+            const generated = [];
+            for (let i = 0; i < (ex.defaultSets || 3); i++) {
+                const prev = prevSets[i] || prevSets[prevSets.length - 1]; // extra rows repeat the last set
+                generated.push({ weight: prev?.weight ?? '', reps: prev?.reps ?? '', done: false, auto: true });
+            }
+            return generated;
+        }
+
+        function isUntouchedPrefill(sets, weekKey) {
+            if (sets.some(st => st.done)) return false;
+            if (sets.every(st => st.auto)) return true;
+            // Rows saved before the `auto` flag existed: a future week can't hold real entries yet
+            return weekKey > getWeekKey(0) && sets.every(st => st.auto === undefined);
+        }
+
+        // Any edit makes the rows the user's own, so they're never rebuilt. Set `auto: false` explicitly
+        // (rather than removing it) so they can't be mistaken for unflagged rows from older versions.
+        function markSetsTouched(sets) {
+            (sets || []).forEach(st => { st.auto = false; });
+        }
+
+        // Best set = highest 1st measure (ties broken by the 2nd)
+        function getBestSet(exerciseId) {
+            let best = { first: 0, second: 0 };
+            Object.values(state.logs).forEach(wkObj => {
+                Object.values(wkObj || {}).forEach(sLog => {
+                    const sets = sLog?.exercises?.[exerciseId];
+                    if (Array.isArray(sets)) {
+                        sets.forEach(st => {
+                            if (!st.done) return; // only sets actually performed, not pre-filled rows
+                            const first = parseFloat(st.weight) || 0;
+                            const second = parseFloat(st.reps) || 0;
+                            if (first > best.first || (first === best.first && second > best.second)) {
+                                best = { first, second };
+                            }
+                        });
+                    }
+                });
+            });
+            return best;
+        }
+
+        // A first-ever set isn't a PB (there's nothing to beat yet)
+        function beatsBest(set, previousBest) {
+            if (!previousBest || previousBest.first <= 0) return false;
+            const first = parseFloat(set.weight) || 0;
+            const second = parseFloat(set.reps) || 0;
+            return first > previousBest.first || (first === previousBest.first && second > previousBest.second);
+        }
+
+        // e.g. "60kg × 10" or "5.2 km · 25 min"
+        function getExercisePersonalBest(exerciseId, track) {
+            const { first: bestFirst, second: bestSecond } = getBestSet(exerciseId);
+            if (bestFirst <= 0) return 'No PB yet';
+            if (isWeightReps(track)) return `${formatWeight(bestFirst)}${state.unit} × ${bestSecond || 1}`;
+            const parts = [metricWithUnit(track[0], bestFirst)];
+            if (track[1] !== 'none' && bestSecond > 0) parts.push(metricWithUnit(track[1], bestSecond));
+            return parts.join(' · ');
+        }
+
+        function getSessionStats(sLog, sessionId) {
+            const sessionType = state.sessions.find(s => s.id === sessionId)?.type;
+            let doneSets = 0;
+            let totalSets = 0;
+            let volumeKg = 0;
+            Object.entries(sLog?.exercises || {}).forEach(([exerciseId, sets]) => {
+                // Volume only makes sense for weight × reps exercises
+                const countsVolume = isWeightReps(getTrackById(exerciseId, sessionType));
+                (sets || []).forEach(st => {
+                    totalSets++;
+                    if (!st.done) return;
+                    doneSets++;
+                    if (countsVolume) volumeKg += (parseFloat(st.weight) || 0) * (parseInt(st.reps, 10) || 0);
+                });
+            });
+            return { doneSets, totalSets, volumeKg };
+        }
+
+        function formatVolume(volumeKg) {
+            return `${Math.round(kgToDisplay(volumeKg)).toLocaleString()} ${state.unit}`;
+        }
+
+        function getAllTimeAssaultBikePB() {
+            let bestCals = 0;
+            let bestWatts = 0;
+            Object.values(state.logs).forEach(wkObj => {
+                Object.values(wkObj || {}).forEach(sLog => {
+                    const c = parseInt(sLog?.hiitCals, 10) || 0;
+                    const w = parseInt(sLog?.hiitWatts, 10) || 0;
+                    if (c > bestCals) bestCals = c;
+                    if (w > bestWatts) bestWatts = w;
+                });
+            });
+            if (bestCals === 0 && bestWatts === 0) return 'Log to set PB';
+            return `${bestCals} kcal / ${bestWatts}W`;
+        }
+
+        // Sets actually performed the most recent time before the viewed week
+        function getLastPerformance(exerciseId, beforeWeekKey) {
+            const weekKeys = Object.keys(state.logs).filter(wk => wk < beforeWeekKey).sort().reverse();
+            for (const wk of weekKeys) {
+                for (const sLog of Object.values(state.logs[wk] || {})) {
+                    const doneSets = (sLog?.exercises?.[exerciseId] || []).filter(st => st.done);
+                    if (doneSets.length) return { weekKey: wk, date: sLog.date || '', sets: doneSets };
+                }
+            }
+            return null;
+        }
+
+        // "8-10 reps" -> { low: 8, high: 10 }, "12 reps" -> { low: 12, high: 12 }, "20 mins" -> null
+        function parseRepRange(target) {
+            const t = String(target || '').toLowerCase();
+            if (!/rep/.test(t) && /min|sec/.test(t)) return null;
+            const range = t.match(/(\d+)\s*(?:-|–|to)\s*(\d+)/);
+            if (range) return { low: Number(range[1]), high: Number(range[2]) };
+            const single = t.match(/(\d+)\s*reps?/);
+            return single ? { low: Number(single[1]), high: Number(single[1]) } : null;
+        }
+
+        // Double progression: once every set at the top weight hits the top of the rep range, add weight
+        function getProgressionHint(ex, last, track) {
+            if (!last || !isWeightReps(track)) return null;
+            const range = parseRepRange(ex.target);
+            if (!range) return null;
+            const topKg = Math.max(...last.sets.map(st => parseFloat(st.weight) || 0));
+            if (topKg <= 0) return null; // bodyweight work: nothing to add
+            const topSets = last.sets.filter(st => (parseFloat(st.weight) || 0) === topKg);
+            if (topSets.every(st => (parseInt(st.reps, 10) || 0) >= range.high)) {
+                const step = state.unit === 'lbs' ? 5 : 2.5;
+                return { type: 'up', kg: parseWeightInput(Number(formatWeight(topKg)) + step) };
+            }
+            return { type: 'hold', kg: String(topKg), reps: range.high };
+        }
+
+        // Weight × reps: "60kg × 10, 10, 8" (constant weight) or "60×10 · 62.5×8 kg".
+        // Anything else: "15, 12, 12 reps" (single measure) or "5.2 km / 25 min" per set.
+        function formatSetsSummary(sets, track) {
+            const [first, second] = track;
+            if (isWeightReps(track)) {
+                const unit = state.unit;
+                const weights = sets.map(st => (parseFloat(st.weight) ? formatWeight(st.weight) : 'BW'));
+                const reps = sets.map(st => st.reps || '0');
+                if (weights.every(w => w === weights[0])) {
+                    return `${weights[0]}${weights[0] === 'BW' ? '' : unit} × ${reps.join(', ')}`;
+                }
+                return sets.map((st, i) => `${weights[i]}×${reps[i]}`).join(' · ') + ` ${unit}`;
+            }
+            if (second === 'none') {
+                const values = sets.map(st => metricInputValue(first, st.weight) || '0').join(', ');
+                const unit = first === 'weight' ? state.unit : METRICS[first].unit;
+                return unit ? `${values}${first === 'weight' ? '' : ' '}${unit}` : values;
+            }
+            return sets.map(st => `${metricWithUnit(first, st.weight)} / ${metricWithUnit(second, st.reps)}`).join(', ');
+        }
+
+        // Remember the actual day a session was trained (only knowable when logging in the current week)
+        function stampSessionDate(sLog, weekKey) {
+            if (!sLog.date && weekKey === getWeekKey(0)) sLog.date = formatDateKey(new Date());
+        }
+
+        function isSessionLogged(sLog) {
+            if (!sLog) return false;
+            if (sLog.completed || sLog.hiitDone || parseInt(sLog.hiitCals, 10) > 0 || parseInt(sLog.hiitWatts, 10) > 0) return true;
+            return Object.values(sLog.exercises || {}).some(sets => (sets || []).some(st => st.done));
+        }
+
+        /**************************************************************
+         * 5. DASHBOARD RENDER ENGINE
+         **************************************************************/
+        function renderDashboard() {
+            const now = new Date();
+            // Short "Thu 15" so it fits beside the header icons; the month is shown in the week switcher
+            document.getElementById('current-date-display').textContent =
+                `${now.toLocaleDateString(undefined, { weekday: 'short' })} ${now.getDate()}`;
+            document.getElementById('unit-toggle-btn').textContent = state.unit.toUpperCase();
+
+            const weekKey = getWeekKey(state.weekOffset);
+            document.getElementById('week-range-label').textContent = getWeekRangeText(state.weekOffset);
+            document.getElementById('active-week-badge').textContent = state.weekOffset === 0
+                ? 'This Wk'
+                : (state.weekOffset < 0 ? `${Math.abs(state.weekOffset)}w Ago` : `+${state.weekOffset}w`);
+
+            renderSessionSelectorTabs(weekKey);
+            renderActiveSession(weekKey);
+            updateKPIs(weekKey);
+            const loggedCount = getHistoryEntries().length;
+            document.getElementById('history-count-label').textContent = `${loggedCount} logged`;
+            renderBackupReminder(loggedCount);
+            populateChartExerciseDropdown();
+            renderConsistencyChart();
+            renderStrengthChart();
+            renderPBLeaderboard();
+        }
+
+        function renderSessionSelectorTabs(weekKey) {
+            const container = document.getElementById('session-tabs-grid');
+            container.innerHTML = state.sessions.map(session => {
+                const sLog = ensureSessionLog(weekKey, session.id);
+                const isActive = state.activeSessionId === session.id;
+                const isDone = !!sLog.completed;
+                const hiitDone = !!sLog.hiitDone;
+
+                return `
+                    <button type="button" onclick="selectSession('${session.id}')"
+                        class="text-left p-2.5 sm:p-3 rounded-xl border transition-all flex flex-col justify-between gap-1.5 ${
+                            isActive
+                                ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950 border-transparent shadow-md'
+                                : isDone
+                                    ? 'bg-gym-500/10 border-gym-500/30 text-slate-800 dark:text-slate-100'
+                                    : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200/80 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100'
+                        }">
+                        <div class="flex items-center justify-between gap-1 w-full">
+                            <span class="text-[9px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                                isActive
+                                    ? 'bg-white/15 text-white dark:bg-slate-900/15 dark:text-slate-900'
+                                    : isDone
+                                        ? 'bg-gym-500 text-white'
+                                        : 'bg-slate-200/80 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                            }">
+                                Day ${session.number}
+                            </span>
+                            ${isDone
+                                ? '<span class="text-[10px] font-extrabold text-gym-500">✓ Done</span>'
+                                : (session.requiresAssaultBike
+                                    ? `<span class="text-[9px] font-bold ${hiitDone ? 'text-hiit-500' : 'opacity-60'}">${hiitDone ? '🔥 HIIT ✓' : '+10m HIIT'}</span>`
+                                    : '<span class="text-[9px] font-bold opacity-60">Cardio</span>')
+                            }
+                        </div>
+                        <div>
+                            <p class="font-extrabold text-xs sm:text-sm leading-tight truncate">${escapeHtml(session.shortName || session.name)}</p>
+                            <p class="text-[10px] opacity-70 mt-0.5 truncate">${session.exercises.length} exercises</p>
+                        </div>
+                    </button>
+                `;
+            }).join('');
+        }
+
+        function renderActiveSession(weekKey) {
+            const session = state.sessions.find(s => s.id === state.activeSessionId) || state.sessions[0];
+            const sLog = ensureSessionLog(weekKey, session.id);
+
+            // 1. Assault Bike Banner Visibility & State
+            const bikeBanner = document.getElementById('assault-bike-banner');
+            if (session.requiresAssaultBike) {
+                bikeBanner.classList.remove('hidden');
+                const btn = document.getElementById('hiit-complete-btn');
+                const badge = document.getElementById('hiit-status-badge');
+                if (sLog.hiitDone) {
+                    btn.className = 'w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 bg-hiit-500 text-white border-2 border-hiit-500 shadow-md shadow-hiit-500/30 animate-pop';
+                    btn.innerHTML = '<svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>';
+                    badge.textContent = '10m HIIT Completed 🔥';
+                    badge.className = 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-gym-500 text-white';
+                } else {
+                    btn.className = 'w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 bg-white/80 dark:bg-slate-900 border-2 border-hiit-500/50 text-hiit-500 hover:bg-hiit-500/10';
+                    btn.innerHTML = '<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/></svg>';
+                    badge.textContent = 'Warmup Pending';
+                    badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-900/10 dark:bg-white/10 text-slate-700 dark:text-slate-200';
+                }
+                document.getElementById('hiit-cals-input').value = sLog.hiitCals || '';
+                document.getElementById('hiit-watts-input').value = sLog.hiitWatts || '';
+                document.getElementById('hiit-pb-label').textContent = getAllTimeAssaultBikePB();
+            } else {
+                bikeBanner.classList.add('hidden');
+            }
+
+            // 2. Session Header & Finish Buttons
+            document.getElementById('active-session-title').textContent = `${session.number}. ${session.name}`;
+            const statusBadge = document.getElementById('active-session-badge');
+            const topBtn = document.getElementById('finish-session-top-btn');
+            const botBtn = document.getElementById('finish-session-bottom-btn');
+
+            if (sLog.completed) {
+                statusBadge.textContent = 'Completed ✓';
+                statusBadge.className = 'text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-gym-500 text-white';
+                topBtn.textContent = 'Completed ✓ (Tap to Undo)';
+                topBtn.className = 'flex-1 sm:flex-initial px-3.5 py-2 rounded-xl text-xs font-extrabold bg-slate-200 dark:bg-slate-800 text-gym-600 dark:text-gym-400 text-center';
+                botBtn.innerHTML = '<span>Session Logged ✓ (Tap to Reopen)</span>';
+            } else {
+                statusBadge.textContent = 'In Progress';
+                statusBadge.className = 'text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-500';
+                topBtn.textContent = 'Complete Session ✓';
+                topBtn.className = 'flex-1 sm:flex-initial px-3.5 py-2 rounded-xl text-xs font-extrabold bg-gym-600 hover:bg-gym-500 text-white shadow-sm transition-all text-center';
+                botBtn.innerHTML = '<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg><span>Finish & Mark Session Complete</span>';
+            }
+
+            // 3. Render Exercises & Sets
+            const listEl = document.getElementById('exercises-list-container');
+            let totalSetsDone = 0;
+            let totalSetsCount = 0;
+
+            listEl.innerHTML = session.exercises.map((ex, exIdx) => {
+                const sets = sLog.exercises[ex.id] || [];
+                const track = getExerciseTrack(ex, session.type);
+                const [firstMetric, secondMetric] = track;
+                const singleMeasure = secondMetric === 'none';
+                const restSeconds = getRestSeconds(ex);
+                const pbText = getExercisePersonalBest(ex.id, track);
+                const doneInEx = sets.filter(st => st.done).length;
+                totalSetsDone += doneInEx;
+                totalSetsCount += sets.length;
+
+                // "Last time" strip + progression suggestion (hidden once every set this week is logged)
+                const last = getLastPerformance(ex.id, weekKey);
+                const hint = getProgressionHint(ex, last, track);
+                const openSets = sets.filter(st => !st.done);
+                let hintHtml = '';
+                if (hint && openSets.length && hint.type === 'up') {
+                    const applied = openSets.every(st => Math.abs((parseFloat(st.weight) || 0) - parseFloat(hint.kg)) < 0.01);
+                    hintHtml = applied
+                        ? `<span class="shrink-0 text-[11px] font-extrabold text-gym-600 dark:text-gym-400">↑ ${formatWeight(hint.kg)}${state.unit} ✓</span>`
+                        : `<button type="button" onclick="applyWeightSuggestion('${ex.id}', '${hint.kg}')" class="shrink-0 px-2.5 py-1.5 rounded-lg text-[11px] font-extrabold bg-gym-500/15 hover:bg-gym-500/25 text-gym-600 dark:text-gym-400 border border-gym-500/25 active:scale-95 transition-all">↑ Try ${formatWeight(hint.kg)}${state.unit}</button>`;
+                } else if (hint && openSets.length && hint.type === 'hold') {
+                    hintHtml = `<span class="shrink-0 text-right text-[10px] font-bold leading-tight text-slate-400">Same weight<br>aim for ${hint.reps} reps</span>`;
+                }
+                const lastHtml = last ? `
+                        <div class="mt-2.5 flex items-center justify-between gap-2 px-2.5 py-2 rounded-xl bg-white/80 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-800">
+                            <div class="min-w-0">
+                                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Last time · ${escapeHtml(formatSessionDay(last.date, last.weekKey))}</p>
+                                <p class="text-xs font-mono font-bold text-slate-700 dark:text-slate-200 mt-0.5 break-words">${escapeHtml(formatSetsSummary(last.sets, track))}</p>
+                            </div>
+                            ${hintHtml}
+                        </div>` : '';
+
+                return `
+                    <div class="p-3 sm:p-4 rounded-2xl bg-slate-50/90 dark:bg-slate-800/45 border border-slate-200/80 dark:border-slate-800 transition-all">
+                        <!-- Exercise Header Row -->
+                        <div class="flex items-start justify-between gap-2 pb-2.5 border-b border-slate-200/70 dark:border-slate-700/60">
+                            <div class="min-w-0">
+                                <div class="flex items-center flex-wrap gap-1.5">
+                                    <span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md bg-gym-500/10 text-gym-600 dark:text-gym-400">${escapeHtml(ex.tag || 'Exercise')}</span>
+                                    <span class="text-[10px] font-bold text-slate-400">Target: ${escapeHtml(ex.target)}</span>
+                                    ${restSeconds > 0 ? `<span class="text-[10px] font-bold text-slate-400">Rest ${formatRest(restSeconds)}</span>` : ''}
+                                    <span id="pb-${ex.id}" class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500">PB: ${pbText}</span>
+                                </div>
+                                <h4 class="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white mt-1 leading-snug">${escapeHtml(ex.name)}</h4>
+                                <!-- Standing note for this exercise (seat height, grip...): saved on blur without re-rendering -->
+                                <label class="mt-1 flex items-center gap-1 min-w-0">
+                                    <span class="text-[11px] shrink-0" aria-hidden="true">📝</span>
+                                    <input type="text" maxlength="120" autocomplete="off" enterkeyhint="done" value="${escapeHtml(ex.notes || '')}"
+                                        placeholder="Add a note — seat, grip, settings…" aria-label="Notes for ${escapeHtml(ex.name)}"
+                                        onchange="updateExerciseNotes('${ex.id}', this.value)" onkeydown="if (event.key === 'Enter') this.blur()"
+                                        class="flex-1 min-w-0 bg-transparent rounded-md py-0.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300 placeholder:font-normal placeholder:text-slate-400/80 focus:outline-none focus:bg-white dark:focus:bg-slate-900 focus:px-1.5 focus:ring-1 focus:ring-gym-500">
+                                </label>
+                            </div>
+
+                            <!-- Reorder Up/Down, Edit, Delete -->
+                            <div class="flex items-center gap-0.5 shrink-0">
+                                <button type="button" onclick="moveExercise(${exIdx}, -1)" ${exIdx === 0 ? 'disabled' : ''} title="Move Up" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 disabled:opacity-25">
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>
+                                </button>
+                                <button type="button" onclick="moveExercise(${exIdx}, 1)" ${exIdx === session.exercises.length - 1 ? 'disabled' : ''} title="Move Down" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 disabled:opacity-25">
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                                </button>
+                                <button type="button" onclick="openEditExerciseModal('${ex.id}')" title="Edit Exercise" class="p-1.5 rounded-lg text-slate-400 hover:text-gym-500">
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                                </button>
+                                <button type="button" onclick="deleteExercise('${ex.id}')" title="Remove Exercise" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-500">
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                        ${lastHtml}
+
+                        <!-- Sets Table Header -->
+                        <div class="grid grid-cols-12 gap-2 items-center text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mt-2.5 px-1">
+                            <div class="col-span-2">Set</div>
+                            <div class="${singleMeasure ? 'col-span-8' : 'col-span-4'} text-center truncate">${escapeHtml(metricHeader(firstMetric))}</div>
+                            ${singleMeasure ? '' : `<div class="col-span-4 text-center truncate">${escapeHtml(metricHeader(secondMetric))}</div>`}
+                            <div class="col-span-2 text-right">Log</div>
+                        </div>
+
+                        <!-- Individual Set Rows -->
+                        <div class="space-y-1.5 mt-1.5">
+                            ${sets.map((st, setIdx) => `
+                                <div class="grid grid-cols-12 gap-2 items-center p-1.5 rounded-xl border transition-all ${
+                                    st.done
+                                        ? 'bg-gym-500/10 border-gym-500/35'
+                                        : 'bg-white dark:bg-slate-900/80 border-slate-200/70 dark:border-slate-800'
+                                }">
+                                    <div class="col-span-2 pl-1.5">
+                                        <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg text-xs font-extrabold font-mono ${
+                                            st.done ? 'bg-gym-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                                        }">
+                                            ${setIdx + 1}
+                                        </span>
+                                    </div>
+
+                                    <div class="${singleMeasure ? 'col-span-8' : 'col-span-4'}">
+                                        <input type="text" inputmode="${METRICS[firstMetric].inputmode}" autocomplete="off" placeholder="0" value="${escapeHtml(metricInputValue(firstMetric, st.weight))}"
+                                            aria-label="Set ${setIdx + 1} ${escapeHtml(metricHeader(firstMetric))}"
+                                            onchange="updateSetField('${ex.id}', ${setIdx}, 'weight', this.value)"
+                                            class="w-full py-1.5 px-2 rounded-lg bg-slate-100/80 dark:bg-slate-800 text-center font-mono font-extrabold text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-gym-500">
+                                    </div>
+
+                                    ${singleMeasure ? '' : `
+                                    <div class="col-span-4">
+                                        <input type="text" inputmode="${METRICS[secondMetric].inputmode}" autocomplete="off" placeholder="0" value="${escapeHtml(metricInputValue(secondMetric, st.reps))}"
+                                            aria-label="Set ${setIdx + 1} ${escapeHtml(metricHeader(secondMetric))}"
+                                            onchange="updateSetField('${ex.id}', ${setIdx}, 'reps', this.value)"
+                                            class="w-full py-1.5 px-2 rounded-lg bg-slate-100/80 dark:bg-slate-800 text-center font-mono font-extrabold text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-gym-500">
+                                    </div>`}
+
+                                    <div class="col-span-2 flex justify-end">
+                                        <button type="button" onclick="toggleSetDone('${ex.id}', ${setIdx})" aria-label="Log set ${setIdx + 1}"
+                                            class="w-9 h-8 rounded-xl flex items-center justify-center border transition-all active:scale-95 ${
+                                                st.done
+                                                    ? 'bg-gym-500 text-white border-transparent shadow-sm animate-pop'
+                                                    : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 hover:text-gym-500'
+                                            }">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+
+                        <!-- Add / Remove Set Footer -->
+                        <div class="flex items-center justify-between mt-2.5 pt-2 border-t border-slate-200/50 dark:border-slate-800/70 text-[11px] font-semibold">
+                            <button type="button" onclick="addSetToExercise('${ex.id}')" class="text-gym-600 dark:text-gym-400 hover:underline">+ Add Set</button>
+                            ${sets.length > 1 ? `<button type="button" onclick="removeLastSetFromExercise('${ex.id}')" class="text-slate-400 hover:text-rose-500">− Remove Last Set</button>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            document.getElementById('session-footer-summary').textContent = `${totalSetsDone} of ${totalSetsCount} sets completed`;
+        }
+
+        /**************************************************************
+         * 6. KPI & ANALYTICS CALCULATIONS
+         **************************************************************/
+        function updateKPIs(weekKey) {
+            const wkObj = state.logs[weekKey] || {};
+            let sessionsCompleted = 0;
+            let hiitWarmupsDone = 0;
+            let totalHiitCals = 0;
+            let peakHiitWatts = 0;
+            let weeklyVolume = 0;
+            let weeklySetsLogged = 0;
+
+            state.sessions.forEach(s => {
+                const sLog = wkObj[s.id];
+                if (!sLog) return;
+                if (sLog.completed) sessionsCompleted++;
+                if (s.requiresAssaultBike && sLog.hiitDone) hiitWarmupsDone++;
+                totalHiitCals += parseInt(sLog.hiitCals, 10) || 0;
+                const w = parseInt(sLog.hiitWatts, 10) || 0;
+                if (w > peakHiitWatts) peakHiitWatts = w;
+
+                const stats = getSessionStats(sLog, s.id);
+                weeklySetsLogged += stats.doneSets;
+                weeklyVolume += stats.volumeKg;
+            });
+
+            const pct = Math.min(100, Math.round((sessionsCompleted / 4) * 100));
+            document.getElementById('kpi-sessions-done').textContent = `${sessionsCompleted} / 4`;
+            document.getElementById('kpi-sessions-pct').textContent = `${pct}% Done`;
+            document.getElementById('kpi-sessions-bar').style.width = `${pct}%`;
+
+            document.getElementById('kpi-hiit-done').textContent = `${hiitWarmupsDone} / 3`;
+            document.getElementById('kpi-hiit-cals').textContent = `${totalHiitCals} kcal / ${peakHiitWatts}W`;
+
+            document.getElementById('kpi-weekly-volume').textContent = formatVolume(weeklyVolume);
+            document.getElementById('kpi-sets-completed').textContent = `${weeklySetsLogged} sets logged`;
+
+            // Calculate consecutive active weeks & total sessions all-time
+            let totalAllTimeSessions = 0;
+            Object.values(state.logs).forEach(w => {
+                Object.values(w || {}).forEach(sLog => {
+                    if (sLog && sLog.completed) totalAllTimeSessions++;
+                });
+            });
+
+            let streakWeeks = 0;
+            for (let offset = 0; offset >= -24; offset--) {
+                const key = getWeekKey(offset);
+                const w = state.logs[key];
+                const anyDone = w && Object.values(w).some(s => s && (s.completed || s.hiitDone));
+                if (anyDone) {
+                    streakWeeks++;
+                } else if (offset < 0) {
+                    break;
+                }
+            }
+
+            document.getElementById('kpi-week-streak').textContent = `${streakWeeks} ${streakWeeks === 1 ? 'wk' : 'wks'}`;
+            document.getElementById('kpi-total-workouts').textContent = `${totalAllTimeSessions} total logged`;
+        }
+
+        function renderConsistencyChart() {
+            const container = document.getElementById('consistency-chart-bars');
+            const weeks = [];
+            let sumSessions = 0;
+
+            for (let i = -5; i <= 0; i++) {
+                const offset = state.weekOffset + i;
+                const wkKey = getWeekKey(offset);
+                const monday = getWeekMonday(offset);
+                const label = monday.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                const wkObj = state.logs[wkKey] || {};
+                let doneCount = 0;
+                state.sessions.forEach(s => {
+                    if (wkObj[s.id]?.completed) doneCount++;
+                });
+                sumSessions += doneCount;
+                weeks.push({ label, doneCount, isCurrent: i === 0 });
+            }
+
+            const avg = (sumSessions / 6).toFixed(1);
+            document.getElementById('consistency-avg-badge').textContent = `Avg: ${avg}/4`;
+
+            container.innerHTML = weeks.map(w => {
+                const heightPct = Math.max(8, Math.min(100, Math.round((w.doneCount / 4) * 100)));
+                return `
+                    <div class="h-full flex flex-col items-center justify-end">
+                        <span class="text-[10px] font-extrabold font-mono ${w.doneCount >= 4 ? 'text-gym-500' : 'text-slate-400'} mb-1">${w.doneCount}/4</span>
+                        <div class="w-full max-w-[28px] bg-slate-100 dark:bg-slate-800 rounded-t-xl h-20 flex items-end p-0.5">
+                            <div class="w-full rounded-t-lg transition-all duration-300 ${
+                                w.isCurrent ? 'bg-gradient-to-t from-gym-600 to-teal-400' : 'bg-gym-500/65'
+                            }" style="height: ${heightPct}%"></div>
+                        </div>
+                        <span class="mt-1.5 text-[9px] font-bold text-slate-400 truncate max-w-full">${w.label}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function populateChartExerciseDropdown() {
+            const select = document.getElementById('chart-exercise-select');
+            const currentVal = select.value;
+            const options = [
+                { value: 'ASSAULT_BIKE_CALS', label: '🔥 Assault Bike 10m Warmup (Max Calories)' }
+            ];
+            state.sessions.forEach(s => {
+                s.exercises.forEach(ex => {
+                    options.push({ value: ex.id, label: `${s.number}. ${ex.name}` });
+                });
+            });
+
+            select.innerHTML = options.map(o => `<option value="${o.value}">${escapeHtml(o.label)}</option>`).join('');
+            if (currentVal && options.some(o => o.value === currentVal)) {
+                select.value = currentVal;
+            }
+        }
+
+        function renderStrengthChart() {
+            const select = document.getElementById('chart-exercise-select');
+            const selectedId = select.value || 'ASSAULT_BIKE_CALS';
+            const container = document.getElementById('strength-chart-bars');
+            const points = [];
+            let maxVal = 0;
+
+            for (let i = -5; i <= 0; i++) {
+                const offset = state.weekOffset + i;
+                const wkKey = getWeekKey(offset);
+                const monday = getWeekMonday(offset);
+                const label = monday.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                const wkObj = state.logs[wkKey] || {};
+
+                let val = 0;
+                if (selectedId === 'ASSAULT_BIKE_CALS') {
+                    Object.values(wkObj).forEach(sLog => {
+                        const c = parseInt(sLog?.hiitCals, 10) || 0;
+                        if (c > val) val = c;
+                    });
+                } else {
+                    Object.values(wkObj).forEach(sLog => {
+                        const sets = sLog?.exercises?.[selectedId];
+                        if (Array.isArray(sets)) {
+                            sets.forEach(st => {
+                                if (!st.done) return; // pre-filled rows aren't lifts
+                                const w = parseFloat(st.weight) || 0;
+                                if (w > val) val = w;
+                            });
+                        }
+                    });
+                }
+                if (val > maxVal) maxVal = val;
+                points.push({ label, val, isCurrent: i === 0 });
+            }
+
+            // Charts the exercise's 1st measure (weight for lifts, e.g. distance or cals for cardio)
+            const metric = selectedId === 'ASSAULT_BIKE_CALS' ? 'cals' : getTrackById(selectedId)[0];
+            const unitSuffix = metric === 'weight' ? state.unit : METRICS[metric].unit;
+            const showVal = v => metricInputValue(metric, v);
+            document.getElementById('strength-pb-pill').textContent = maxVal > 0 ? `Peak: ${showVal(maxVal)} ${unitSuffix}`.trim() : 'Peak: -';
+
+            container.innerHTML = points.map(p => {
+                const pct = maxVal > 0 ? Math.max(8, Math.round((p.val / maxVal) * 100)) : 8;
+                return `
+                    <div class="h-full flex flex-col items-center justify-end">
+                        <span class="text-[10px] font-extrabold font-mono ${p.val > 0 ? 'text-hiit-500' : 'text-slate-400'} mb-1">${p.val > 0 ? showVal(p.val) : '-'}</span>
+                        <div class="w-full max-w-[28px] bg-slate-100 dark:bg-slate-800 rounded-t-xl h-20 flex items-end p-0.5">
+                            <div class="w-full rounded-t-lg transition-all duration-300 ${
+                                p.isCurrent ? 'bg-gradient-to-t from-hiit-600 to-amber-400' : 'bg-indigo-500/70'
+                            }" style="height: ${pct}%"></div>
+                        </div>
+                        <span class="mt-1.5 text-[9px] font-bold text-slate-400 truncate max-w-full">${p.label}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderPBLeaderboard() {
+            const session = state.sessions.find(s => s.id === state.activeSessionId) || state.sessions[0];
+            const container = document.getElementById('pb-leaderboard');
+
+            container.innerHTML = session.exercises.map(ex => {
+                const pb = getExercisePersonalBest(ex.id, getExerciseTrack(ex, session.type));
+                return `
+                    <div class="p-2.5 rounded-xl bg-slate-50/90 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+                        <div class="min-w-0">
+                            <p class="text-xs font-bold truncate">${escapeHtml(ex.name)}</p>
+                            <span class="text-[10px] text-slate-400">${escapeHtml(ex.tag || '')}</span>
+                        </div>
+                        <span class="text-xs font-extrabold font-mono px-2 py-1 rounded-lg bg-amber-500/10 text-amber-500 shrink-0">
+                            ${pb}
+                        </span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        /**************************************************************
+         * 7. USER INTERACTIONS (LOGGING SETS, HIIT, TIMERS, EDITING)
+         **************************************************************/
+        function selectSession(sessionId) {
+            state.activeSessionId = sessionId;
+            renderDashboard();
+        }
+
+        function changeWeek(delta) {
+            state.weekOffset += delta;
+            renderDashboard();
+        }
+
+        function resetToCurrentWeek() {
+            state.weekOffset = 0;
+            renderDashboard();
+        }
+
+        function toggleWeightUnit() {
+            state.unit = state.unit === 'kg' ? 'lbs' : 'kg';
+            saveState();
+            renderDashboard();
+            showToast(`All weights now shown in ${state.unit.toUpperCase()}`, 'gym');
+        }
+
+        function toggleAssaultBikeWarmup() {
+            const weekKey = getWeekKey(state.weekOffset);
+            const sLog = ensureSessionLog(weekKey, state.activeSessionId);
+            sLog.hiitDone = !sLog.hiitDone;
+            if (sLog.hiitDone) stampSessionDate(sLog, weekKey);
+            saveState();
+            renderDashboard();
+            if (sLog.hiitDone) {
+                showToast('10 Mins Assault Bike HIIT logged! Time to lift 🔥', 'hiit');
+            }
+        }
+
+        function saveAssaultBikeStats() {
+            const weekKey = getWeekKey(state.weekOffset);
+            const sLog = ensureSessionLog(weekKey, state.activeSessionId);
+            sLog.hiitCals = document.getElementById('hiit-cals-input').value.trim();
+            sLog.hiitWatts = document.getElementById('hiit-watts-input').value.trim();
+            if ((parseInt(sLog.hiitCals, 10) > 0 || parseInt(sLog.hiitWatts, 10) > 0) && !sLog.hiitDone) {
+                sLog.hiitDone = true;
+            }
+            if (sLog.hiitDone) stampSessionDate(sLog, weekKey);
+            saveState();
+            renderDashboard();
+        }
+
+        function updateSetField(exerciseId, setIndex, field, value) {
+            const weekKey = getWeekKey(state.weekOffset);
+            const sLog = ensureSessionLog(weekKey, state.activeSessionId);
+            if (!sLog.exercises[exerciseId] || !sLog.exercises[exerciseId][setIndex]) return;
+            const session = state.sessions.find(s => s.id === state.activeSessionId);
+            const track = getExerciseTrack(session?.exercises.find(e => e.id === exerciseId), session?.type);
+            // `weight` holds the 1st measure and `reps` the 2nd; weights are stored in kg,
+            // and "62,5" from decimal-comma keyboards is accepted
+            sLog.exercises[exerciseId][setIndex][field] = metricStoredValue(field === 'weight' ? track[0] : track[1], value);
+            markSetsTouched(sLog.exercises[exerciseId]);
+            saveState();
+            // Don't re-render the exercise list here: this fires on blur, and rebuilding the inputs
+            // would steal focus from the field the user just tapped (e.g. weight -> reps on iPhone).
+            const pbEl = document.getElementById(`pb-${exerciseId}`);
+            if (pbEl) pbEl.textContent = `PB: ${getExercisePersonalBest(exerciseId, track)}`;
+            updateKPIs(weekKey);
+            renderStrengthChart();
+            renderPBLeaderboard();
+        }
+
+        function toggleSetDone(exerciseId, setIndex) {
+            const weekKey = getWeekKey(state.weekOffset);
+            const sLog = ensureSessionLog(weekKey, state.activeSessionId);
+            const setObj = sLog.exercises[exerciseId]?.[setIndex];
+            if (!setObj) return;
+            const session = state.sessions.find(s => s.id === state.activeSessionId);
+            const ex = session?.exercises.find(e => e.id === exerciseId);
+            const previousBest = setObj.done ? null : getBestSet(exerciseId); // measured before this set counts
+            setObj.done = !setObj.done;
+            markSetsTouched(sLog.exercises[exerciseId]);
+            if (setObj.done) stampSessionDate(sLog, weekKey);
+            saveState();
+            renderDashboard();
+
+            if (setObj.done) {
+                if (beatsBest(setObj, previousBest)) celebratePB(ex, getExerciseTrack(ex, session?.type), setObj);
+                const rest = getRestSeconds(ex);
+                if (rest > 0) startRestTimer(rest);
+            }
+        }
+
+        function updateExerciseNotes(exerciseId, value) {
+            const found = findExercise(exerciseId);
+            if (!found) return;
+            found.ex.notes = String(value).trim();
+            saveState();
+        }
+
+        function applyWeightSuggestion(exerciseId, kg) {
+            const sLog = ensureSessionLog(getWeekKey(state.weekOffset), state.activeSessionId);
+            (sLog.exercises[exerciseId] || []).forEach(st => {
+                if (!st.done) st.weight = kg;
+            });
+            markSetsTouched(sLog.exercises[exerciseId]);
+            saveState();
+            renderDashboard();
+            showToast(`Remaining sets set to ${formatWeight(kg)}${state.unit} — go get it! 💪`, 'gym');
+        }
+
+        function addSetToExercise(exerciseId) {
+            const weekKey = getWeekKey(state.weekOffset);
+            const sLog = ensureSessionLog(weekKey, state.activeSessionId);
+            const sets = sLog.exercises[exerciseId] || [];
+            const lastSet = sets[sets.length - 1] || { weight: '', reps: '' };
+            sets.push({ weight: lastSet.weight, reps: lastSet.reps, done: false });
+            markSetsTouched(sets);
+            sLog.exercises[exerciseId] = sets;
+            saveState();
+            renderDashboard();
+        }
+
+        function removeLastSetFromExercise(exerciseId) {
+            const weekKey = getWeekKey(state.weekOffset);
+            const sLog = ensureSessionLog(weekKey, state.activeSessionId);
+            const sets = sLog.exercises[exerciseId];
+            if (Array.isArray(sets) && sets.length > 1) {
+                sets.pop();
+                markSetsTouched(sets);
+                saveState();
+                renderDashboard();
+            }
+        }
+
+        function toggleSessionCompleted() {
+            const weekKey = getWeekKey(state.weekOffset);
+            const session = state.sessions.find(s => s.id === state.activeSessionId);
+            const sLog = ensureSessionLog(weekKey, state.activeSessionId);
+
+            if (!sLog.completed && session.requiresAssaultBike && !sLog.hiitDone) {
+                sLog.hiitDone = true; // Auto-credit the mandatory 10m HIIT warmup when finishing session
+            }
+            sLog.completed = !sLog.completed;
+            if (sLog.completed) stampSessionDate(sLog, weekKey);
+            saveState();
+            renderDashboard();
+
+            if (sLog.completed) {
+                showToast(`${session.name} marked complete for this week! 💪`, 'gym');
+            }
+        }
+
+        function moveExercise(index, direction) {
+            const session = state.sessions.find(s => s.id === state.activeSessionId);
+            if (!session) return;
+            const target = index + direction;
+            if (target < 0 || target >= session.exercises.length) return;
+            const tmp = session.exercises[index];
+            session.exercises[index] = session.exercises[target];
+            session.exercises[target] = tmp;
+            saveState();
+            renderDashboard();
+        }
+
+        /**************************************************************
+         * 8. BUILT-IN 10:00 ASSAULT BIKE HIIT TIMER & REST TIMER
+         **************************************************************/
+        // One shared AudioContext: iOS caps how many can exist and only lets one start from a tap,
+        // so a fresh context per beep stays silent when a timer (not a tap) triggers it.
+        let audioCtx = null;
+        let audioUnlocked = false;
+
+        function getAudioCtx() {
+            if (!audioCtx) {
+                const Ctx = window.AudioContext || window.webkitAudioContext;
+                if (!Ctx) return null;
+                audioCtx = new Ctx();
+            }
+            if (audioCtx.state !== 'running') audioCtx.resume().catch(() => {});
+            return audioCtx;
+        }
+
+        function unlockAudio() {
+            try {
+                const ctx = getAudioCtx();
+                if (!ctx || audioUnlocked) return;
+                const src = ctx.createBufferSource();
+                src.buffer = ctx.createBuffer(1, 1, 22050);
+                src.connect(ctx.destination);
+                src.start(0);
+                audioUnlocked = true;
+            } catch (e) {}
+        }
+
+        ['touchend', 'click'].forEach(evt => document.addEventListener(evt, unlockAudio, { passive: true }));
+
+        function playBeep(freq = 880, duration = 0.16) {
+            try {
+                const ctx = getAudioCtx();
+                if (!ctx) return;
+                const t = ctx.currentTime;
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, t);
+                gain.gain.setValueAtTime(0.15, t);
+                gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(t);
+                osc.stop(t + duration);
+            } catch (e) {}
+        }
+
+        // Keep the screen awake while a timer runs (otherwise auto-lock freezes the countdown display & beeps)
+        let wakeLock = null;
+        let wakeLockBusy = false;
+
+        async function updateWakeLock() {
+            if (wakeLockBusy || !('wakeLock' in navigator)) return;
+            wakeLockBusy = true;
+            try {
+                const wanted = !!(hiitTimerInterval || restTimerInterval);
+                if (wanted && !wakeLock && document.visibilityState === 'visible') {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    wakeLock.addEventListener('release', () => { wakeLock = null; });
+                } else if (!wanted && wakeLock) {
+                    await wakeLock.release();
+                    wakeLock = null;
+                }
+            } catch (e) {
+            } finally {
+                wakeLockBusy = false;
+            }
+        }
+
+        function secondsLeft(endsAt) {
+            return Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
+        }
+
+        function formatSecondsMMSS(sec) {
+            const m = String(Math.floor(sec / 60)).padStart(2, '0');
+            const s = String(sec % 60).padStart(2, '0');
+            return `${m}:${s}`;
+        }
+
+        function updateHiitTimerUI() {
+            document.getElementById('hiit-timer-display').textContent = formatSecondsMMSS(hiitTimerSeconds);
+            const phaseEl = document.getElementById('hiit-phase-pill');
+            if (!hiitTimerInterval) {
+                phaseEl.textContent = hiitTimerSeconds === 600 ? 'READY' : (hiitTimerSeconds === 0 ? 'DONE' : 'PAUSED');
+                phaseEl.className = 'text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-hiit-500/20 text-hiit-500';
+                return;
+            }
+            // Alternate 30s SPRINT / 30s CRUISE visual cue
+            const secInMinute = hiitTimerSeconds % 60;
+            if (secInMinute > 30 || secInMinute === 0) {
+                phaseEl.textContent = '30s CRUISE';
+                phaseEl.className = 'text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-gym-500 text-white';
+            } else {
+                phaseEl.textContent = '30s SPRINT 🔥';
+                phaseEl.className = 'text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-rose-600 text-white animate-pulse-fast';
+            }
+        }
+
+        function toggleHiitTimer() {
+            const btn = document.getElementById('hiit-start-btn');
+            if (hiitTimerInterval) {
+                hiitTimerSeconds = secondsLeft(hiitEndsAt);
+                clearInterval(hiitTimerInterval);
+                hiitTimerInterval = null;
+                btn.textContent = 'Resume';
+                updateHiitTimerUI();
+                updateWakeLock();
+                return;
+            }
+            if (hiitTimerSeconds <= 0) hiitTimerSeconds = 600; // tapping "Done!" starts a fresh 10:00
+            hiitTimerTarget = { weekKey: getWeekKey(state.weekOffset), sessionId: state.activeSessionId };
+            hiitEndsAt = Date.now() + hiitTimerSeconds * 1000;
+            btn.textContent = 'Pause';
+            playBeep(660, 0.12);
+            hiitTimerInterval = setInterval(tickHiitTimer, 250);
+            updateHiitTimerUI();
+            updateWakeLock();
+        }
+
+        function tickHiitTimer() {
+            const prev = hiitTimerSeconds;
+            hiitTimerSeconds = secondsLeft(hiitEndsAt);
+            if (hiitTimerSeconds === prev) return;
+
+            if (hiitTimerSeconds > 0) {
+                // Beep at each 30s sprint/cruise switch — but not for switches missed while the phone was locked
+                const boundary = Math.ceil(hiitTimerSeconds / 30) * 30;
+                if (boundary < prev && boundary < 600 && prev - hiitTimerSeconds <= 2) {
+                    playBeep(boundary % 60 === 30 ? 980 : 620, 0.18);
+                }
+                updateHiitTimerUI();
+                return;
+            }
+
+            clearInterval(hiitTimerInterval);
+            hiitTimerInterval = null;
+            document.getElementById('hiit-start-btn').textContent = 'Done!';
+            playBeep(1040, 0.35);
+            const target = hiitTimerTarget || { weekKey: getWeekKey(state.weekOffset), sessionId: state.activeSessionId };
+            const sLog = ensureSessionLog(target.weekKey, target.sessionId);
+            sLog.hiitDone = true;
+            stampSessionDate(sLog, target.weekKey);
+            saveState();
+            renderDashboard();
+            updateHiitTimerUI();
+            updateWakeLock();
+            showToast('10-Min Assault Bike HIIT Complete! 🔥', 'hiit');
+        }
+
+        function resetHiitTimer() {
+            if (hiitTimerInterval) {
+                clearInterval(hiitTimerInterval);
+                hiitTimerInterval = null;
+            }
+            hiitTimerSeconds = 600;
+            document.getElementById('hiit-start-btn').textContent = 'Start';
+            updateHiitTimerUI();
+            updateWakeLock();
+        }
+
+        // Rest Timer
+        // `resume` continues a paused countdown without changing the full rest length used for restarts
+        function startRestTimer(seconds, { resume = false } = {}) {
+            if (restTimerInterval) clearInterval(restTimerInterval);
+            if (!resume) restDuration = seconds;
+            restTimerSeconds = seconds;
+            restEndsAt = Date.now() + seconds * 1000;
+            document.getElementById('rest-timer-display').textContent = formatSecondsMMSS(restTimerSeconds);
+            document.getElementById('rest-toggle-btn').textContent = 'Pause';
+            restTimerInterval = setInterval(tickRestTimer, 250);
+            updateWakeLock();
+        }
+
+        function tickRestTimer() {
+            const left = secondsLeft(restEndsAt);
+            if (left === restTimerSeconds) return;
+            restTimerSeconds = left;
+            document.getElementById('rest-timer-display').textContent = formatSecondsMMSS(restTimerSeconds);
+            if (left > 0) return;
+
+            clearInterval(restTimerInterval);
+            restTimerInterval = null;
+            document.getElementById('rest-toggle-btn').textContent = 'Start';
+            playBeep(880, 0.3);
+            updateWakeLock();
+            showToast('Rest complete — next set ready! 💪', 'gym');
+        }
+
+        function toggleRestTimer() {
+            if (restTimerInterval) {
+                restTimerSeconds = secondsLeft(restEndsAt);
+                clearInterval(restTimerInterval);
+                restTimerInterval = null;
+                document.getElementById('rest-toggle-btn').textContent = 'Resume';
+                updateWakeLock();
+            } else if (restTimerSeconds > 0) {
+                startRestTimer(restTimerSeconds, { resume: true });
+            } else {
+                startRestTimer(restDuration);
+            }
+        }
+
+        // Catch up straight away when returning to the app, and re-take the wake lock iOS dropped
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState !== 'visible') return;
+            if (hiitTimerInterval) tickHiitTimer();
+            if (restTimerInterval) tickRestTimer();
+            updateWakeLock();
+        });
+
+        /**************************************************************
+         * 9. MODALS: ADD/EDIT EXERCISE, EXPORT, REMINDERS & RESET
+         **************************************************************/
+        function openModal(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.classList.remove('hidden');
+            el.classList.add('flex');
+        }
+
+        function closeModal(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.classList.add('hidden');
+            el.classList.remove('flex');
+        }
+
+        let exerciseTrackTouched = false;
+
+        // Fill the two "What to track" pickers and select the given pair
+        function setExerciseTrackInputs(track) {
+            const choices = Object.entries(METRICS).filter(([, m]) => !m.legacy);
+            const options = list => list
+                .map(([key, m]) => `<option value="${key}">${escapeHtml(key === 'weight' ? `Weight (${state.unit})` : m.name)}</option>`)
+                .join('');
+            const first = document.getElementById('exercise-track-a-input');
+            const second = document.getElementById('exercise-track-b-input');
+            first.innerHTML = options(choices.filter(([key]) => key !== 'none'));
+            second.innerHTML = options(choices);
+            // The original combined cardio columns map to their closest single measures
+            const fromLegacy = { legacyCalsSpeed: 'cals', legacyMinsWatts: 'mins' };
+            first.value = fromLegacy[track[0]] || track[0];
+            second.value = fromLegacy[track[1]] || track[1];
+            exerciseTrackTouched = false;
+        }
+
+        // Seconds of rest after ticking a set (0 = no timer); exercises saved before this setting get 90s
+        function getRestSeconds(ex) {
+            return Number.isFinite(ex?.rest) ? ex.rest : 90;
+        }
+
+        // 45 -> "45s", 90 -> "1:30"
+        function formatRest(seconds) {
+            return seconds < 60 ? `${seconds}s` : formatSecondsMMSS(seconds).replace(/^0/, '');
+        }
+
+        function defaultTrackFor(sessionId) {
+            return state.sessions.find(s => s.id === sessionId)?.type === 'cardio' ? ['mins', 'cals'] : ['weight', 'reps'];
+        }
+
+        // While adding, follow the chosen day's default measures until the user picks their own
+        function handleExerciseSessionChange() {
+            if (document.getElementById('exercise-id-input').value || exerciseTrackTouched) return;
+            setExerciseTrackInputs(defaultTrackFor(document.getElementById('exercise-session-input').value));
+        }
+
+        function openAddExerciseModal() {
+            document.getElementById('exercise-modal-title').textContent = 'Add Exercise';
+            document.getElementById('exercise-id-input').value = '';
+            document.getElementById('exercise-session-input').value = state.activeSessionId;
+            document.getElementById('exercise-name-input').value = '';
+            document.getElementById('exercise-sets-input').value = '3';
+            document.getElementById('exercise-target-input').value = '8-10 reps';
+            document.getElementById('exercise-tag-input').value = '';
+            document.getElementById('exercise-rest-input').value = '90';
+            setExerciseTrackInputs(defaultTrackFor(state.activeSessionId));
+            document.getElementById('exercise-track-note').textContent =
+                'e.g. Distance + Time for the rower, Calories + Watts for the bike, Reps + Nothing for ab work.';
+            openModal('exercise-modal');
+        }
+
+        function openEditExerciseModal(exerciseId) {
+            const session = state.sessions.find(s => s.id === state.activeSessionId);
+            const ex = session?.exercises.find(e => e.id === exerciseId);
+            if (!ex) return;
+
+            document.getElementById('exercise-modal-title').textContent = 'Edit Exercise';
+            document.getElementById('exercise-id-input').value = ex.id;
+            document.getElementById('exercise-session-input').value = session.id;
+            document.getElementById('exercise-name-input').value = ex.name;
+            document.getElementById('exercise-sets-input').value = String(ex.defaultSets || 3);
+            document.getElementById('exercise-target-input').value = ex.target || '8-10 reps';
+            document.getElementById('exercise-tag-input').value = ex.tag || '';
+            const restSelect = document.getElementById('exercise-rest-input');
+            restSelect.value = String(getRestSeconds(ex));
+            if (!restSelect.value) restSelect.value = '90'; // a value not in the list
+            setExerciseTrackInputs(getExerciseTrack(ex, session.type));
+            document.getElementById('exercise-track-note').textContent =
+                'Changing these relabels this exercise\'s past entries — the numbers themselves stay the same.';
+            openModal('exercise-modal');
+        }
+
+        function handleExerciseSubmit(e) {
+            e.preventDefault();
+            const id = document.getElementById('exercise-id-input').value;
+            const targetSessionId = document.getElementById('exercise-session-input').value;
+            const name = document.getElementById('exercise-name-input').value.trim();
+            const defaultSets = parseInt(document.getElementById('exercise-sets-input').value, 10) || 3;
+            const target = document.getElementById('exercise-target-input').value.trim();
+            const tag = document.getElementById('exercise-tag-input').value.trim() || 'Strength';
+            const track = [
+                document.getElementById('exercise-track-a-input').value,
+                document.getElementById('exercise-track-b-input').value
+            ];
+            const rest = parseInt(document.getElementById('exercise-rest-input').value, 10) || 0;
+
+            if (!name) return;
+            const session = state.sessions.find(s => s.id === targetSessionId);
+            if (!session) return;
+            if (!METRICS[track[0]] || track[0] === 'none' || !METRICS[track[1]]) return;
+
+            if (id) {
+                const fromSession = state.sessions.find(s => s.exercises.some(item => item.id === id));
+                const ex = fromSession?.exercises.find(item => item.id === id);
+                if (ex) {
+                    ex.name = name;
+                    ex.defaultSets = defaultSets;
+                    ex.target = target;
+                    ex.tag = tag;
+                    ex.track = track;
+                    ex.rest = rest;
+                    // Moved to another day: logged history follows it, since logs are keyed by exercise id
+                    if (fromSession !== session) {
+                        fromSession.exercises = fromSession.exercises.filter(item => item.id !== id);
+                        session.exercises.push(ex);
+                        state.activeSessionId = targetSessionId;
+                    }
+                }
+                showToast('Exercise updated!', 'gym');
+            } else {
+                session.exercises.push({
+                    id: 'ex-' + Date.now(),
+                    name,
+                    defaultSets,
+                    target,
+                    tag,
+                    track,
+                    rest
+                });
+                state.activeSessionId = targetSessionId;
+                showToast('Added new exercise!', 'gym');
+            }
+
+            saveState();
+            closeModal('exercise-modal');
+            renderDashboard();
+        }
+
+        function deleteExercise(exerciseId) {
+            const session = state.sessions.find(s => s.id === state.activeSessionId);
+            if (!session) return;
+            const ex = session.exercises.find(e => e.id === exerciseId);
+            if (!ex || !confirm(`Remove "${ex.name}" from ${session.name}?`)) return;
+            session.exercises = session.exercises.filter(e => e.id !== exerciseId);
+            saveState();
+            renderDashboard();
+            showToast('Exercise removed', 'rose');
+        }
+
+        // Workout History
+        function getHistoryEntries() {
+            const sessionNumber = id => state.sessions.find(s => s.id === id)?.number || 0;
+            const entries = [];
+            Object.keys(state.logs).forEach(weekKey => {
+                Object.entries(state.logs[weekKey] || {}).forEach(([sessionId, sLog]) => {
+                    if (isSessionLogged(sLog)) entries.push({ weekKey, sessionId, sLog });
+                });
+            });
+            // Newest week first; within a week, dated sessions newest first, then by day number
+            return entries.sort((a, b) =>
+                b.weekKey.localeCompare(a.weekKey)
+                || (b.sLog.date || '').localeCompare(a.sLog.date || '')
+                || sessionNumber(b.sessionId) - sessionNumber(a.sessionId));
+        }
+
+        function openHistoryModal() {
+            renderHistory();
+            openModal('history-modal');
+            document.getElementById('history-list').scrollTop = 0;
+        }
+
+        function setHistoryFilter(filter) {
+            state.historyFilter = filter;
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const all = getHistoryEntries();
+            if (state.historyFilter !== 'all' && !state.sessions.some(s => s.id === state.historyFilter)) {
+                state.historyFilter = 'all';
+            }
+            const filter = state.historyFilter;
+            const entries = filter === 'all' ? all : all.filter(e => e.sessionId === filter);
+
+            document.getElementById('history-subtitle').textContent = `${all.length} session${all.length === 1 ? '' : 's'} logged`;
+
+            const chip = (value, label) => `
+                <button type="button" onclick="setHistoryFilter('${value}')" class="shrink-0 px-3 py-1.5 rounded-full text-[11px] font-bold border transition-colors ${
+                    filter === value
+                        ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950 border-transparent'
+                        : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
+                }">${escapeHtml(label)}</button>`;
+            document.getElementById('history-filters').innerHTML =
+                chip('all', 'All') + state.sessions.map(s => chip(s.id, s.shortName || s.name)).join('');
+
+            const list = document.getElementById('history-list');
+            if (!entries.length) {
+                list.innerHTML = `
+                    <div class="py-10 px-4 text-center">
+                        <p class="text-sm font-bold text-slate-700 dark:text-slate-200">No workouts logged yet</p>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Tick off a set or your 10m HIIT and it'll show up here.</p>
+                    </div>`;
+                return;
+            }
+
+            const exerciseNames = {};
+            state.sessions.forEach(s => s.exercises.forEach(ex => { exerciseNames[ex.id] = ex.name; }));
+
+            list.innerHTML = entries.map(({ weekKey, sessionId, sLog }) => {
+                const session = state.sessions.find(s => s.id === sessionId);
+                const stats = getSessionStats(sLog, sessionId);
+                const statParts = [`${stats.doneSets}/${stats.totalSets} sets`];
+                if (stats.volumeKg > 0) statParts.push(formatVolume(stats.volumeKg));
+                const cals = parseInt(sLog.hiitCals, 10) || 0;
+                const watts = parseInt(sLog.hiitWatts, 10) || 0;
+                if (cals || watts) statParts.push(`🔥 ${cals} kcal${watts ? ` / ${watts}W` : ''}`);
+                else if (sLog.hiitDone) statParts.push('🔥 HIIT ✓');
+
+                // Exercises in the session's current order, then any that have since been removed
+                const order = (session?.exercises || []).map(ex => ex.id);
+                const rank = id => (order.includes(id) ? order.indexOf(id) : order.length);
+                const exerciseRows = Object.keys(sLog.exercises || {})
+                    .sort((a, b) => rank(a) - rank(b))
+                    .map(exId => {
+                        const done = (sLog.exercises[exId] || []).filter(st => st.done);
+                        if (!done.length) return '';
+                        return `
+                            <div class="flex items-start justify-between gap-3 py-1.5 border-b border-slate-200/60 dark:border-slate-700/50 last:border-0">
+                                <span class="text-xs font-semibold text-slate-700 dark:text-slate-200 min-w-0">${escapeHtml(exerciseNames[exId] || 'Removed exercise')}</span>
+                                <span class="text-[11px] font-mono font-bold text-slate-500 dark:text-slate-400 text-right shrink-0 max-w-[55%]">${escapeHtml(formatSetsSummary(done, getTrackById(exId, session?.type)))}</span>
+                            </div>`;
+                    }).join('') || '<p class="text-[11px] text-slate-400 py-1.5">No sets ticked off — warmup only.</p>';
+
+                return `
+                    <details class="group rounded-xl bg-slate-50/90 dark:bg-slate-800/45 border border-slate-200/80 dark:border-slate-800">
+                        <summary class="p-3 flex items-start justify-between gap-2 cursor-pointer select-none">
+                            <div class="min-w-0">
+                                <div class="flex items-center flex-wrap gap-1.5">
+                                    <span class="text-[9px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-200/80 dark:bg-slate-700 text-slate-600 dark:text-slate-300">Day ${session?.number ?? '?'}</span>
+                                    <span class="text-[11px] font-semibold text-slate-500 dark:text-slate-400">${escapeHtml(formatSessionDay(sLog.date, weekKey))}</span>
+                                    ${sLog.completed
+                                        ? '<span class="text-[10px] font-extrabold text-gym-500">✓ Done</span>'
+                                        : '<span class="text-[10px] font-bold text-amber-500">Partial</span>'}
+                                </div>
+                                <p class="font-extrabold text-sm mt-1 truncate">${escapeHtml(session?.name || 'Session')}</p>
+                                <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">${escapeHtml(statParts.join(' · '))}</p>
+                            </div>
+                            <svg class="w-4 h-4 mt-1 text-slate-400 shrink-0 transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                        </summary>
+                        <div class="px-3 pb-3">
+                            <div class="rounded-lg bg-white dark:bg-slate-900/70 border border-slate-200/70 dark:border-slate-800 px-2.5">
+                                ${exerciseRows}
+                            </div>
+                            <button type="button" onclick="openHistorySession('${weekKey}', '${sessionId}')" class="mt-2.5 w-full py-2 rounded-xl text-xs font-extrabold bg-gym-500/15 hover:bg-gym-500/25 text-gym-600 dark:text-gym-400 border border-gym-500/25 transition-colors">
+                                Open &amp; edit this session
+                            </button>
+                        </div>
+                    </details>`;
+            }).join('');
+        }
+
+        // Jump the main logger to a past session, where every set can be edited as normal
+        function openHistorySession(weekKey, sessionId) {
+            state.weekOffset = weekOffsetForKey(weekKey);
+            state.activeSessionId = sessionId;
+            closeModal('history-modal');
+            renderDashboard();
+            document.getElementById('session-logger').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // Backup reminder: workouts only live on this phone, so nudge for a copy once there's
+        // something new to save. Kept outside the main payload so restoring a backup doesn't reset it.
+        const LAST_BACKUP_KEY = 'pulsegym_last_backup_v1';
+        const BACKUP_SNOOZE_KEY = 'pulsegym_backup_snooze_v1';
+        const DAY_MS = 86400000;
+        const BACKUP_INTERVAL_MS = 7 * DAY_MS;
+        const BACKUP_SNOOZE_MS = 3 * DAY_MS;
+
+        function readStoredNumber(key) {
+            try { return Number(localStorage.getItem(key)) || 0; } catch (e) { return 0; }
+        }
+
+        function writeStoredNumber(key, value) {
+            try { localStorage.setItem(key, String(value)); } catch (e) {}
+        }
+
+        function daysAgoText(timestamp) {
+            const days = Math.floor((Date.now() - timestamp) / DAY_MS);
+            return days <= 0 ? 'today' : (days === 1 ? 'yesterday' : `${days} days ago`);
+        }
+
+        function isBackupDue(loggedCount) {
+            if (!loggedCount) return false; // nothing worth backing up yet
+            if (Date.now() < readStoredNumber(BACKUP_SNOOZE_KEY)) return false;
+            const lastBackup = readStoredNumber(LAST_BACKUP_KEY);
+            if (!lastBackup) return true;
+            return Number(state.updatedAt) > lastBackup && Date.now() - lastBackup >= BACKUP_INTERVAL_MS;
+        }
+
+        function renderBackupReminder(loggedCount = getHistoryEntries().length) {
+            const due = isBackupDue(loggedCount);
+            document.getElementById('backup-reminder').classList.toggle('hidden', !due);
+            if (!due) return;
+            const lastBackup = readStoredNumber(LAST_BACKUP_KEY);
+            document.getElementById('backup-reminder-text').textContent = lastBackup
+                ? `Last backup ${daysAgoText(lastBackup)}. Your workouts only live on this phone.`
+                : 'Your workouts only live on this phone. Save a copy to Files in case it’s lost or replaced.';
+        }
+
+        function renderLastBackupLabel() {
+            const lastBackup = readStoredNumber(LAST_BACKUP_KEY);
+            document.getElementById('last-backup-label').textContent = `Last backup: ${lastBackup ? daysAgoText(lastBackup) : 'never'}`;
+        }
+
+        function markBackedUp() {
+            writeStoredNumber(LAST_BACKUP_KEY, Date.now());
+            writeStoredNumber(BACKUP_SNOOZE_KEY, 0);
+            renderBackupReminder();
+            renderLastBackupLabel();
+        }
+
+        function snoozeBackupReminder() {
+            writeStoredNumber(BACKUP_SNOOZE_KEY, Date.now() + BACKUP_SNOOZE_MS);
+            renderBackupReminder();
+            showToast('OK — I’ll remind you in a few days', 'gym');
+        }
+
+        // App / Export & Backup Functions
+        function openBackupModal() {
+            const payload = saveLocalCacheOnly();
+            const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+            document.getElementById('backup-export-textarea').value = encoded;
+            document.getElementById('backup-import-input').value = '';
+            renderLastBackupLabel();
+            openModal('backup-modal');
+        }
+
+        function copyBackupCode() {
+            const area = document.getElementById('backup-export-textarea');
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(area.value)
+                    .then(() => {
+                        markBackedUp();
+                        showToast('Backup code copied!', 'gym');
+                    })
+                    .catch(() => copyBackupCodeFallback(area));
+                return;
+            }
+            copyBackupCodeFallback(area);
+        }
+
+        function copyBackupCodeFallback(area) {
+            area.select();
+            area.setSelectionRange(0, 99999);
+            try {
+                document.execCommand('copy');
+                markBackedUp();
+                showToast('Backup code copied!', 'gym');
+            } catch (e) {
+                showToast('Select and copy the code from the box.', 'gym');
+            }
+        }
+
+        function applyImportedState(parsed) {
+            if (!parsed || !Array.isArray(parsed.sessions)) throw new Error('Invalid');
+            migrateWeightsToKg(parsed);
+            state.unit = parsed.unit || 'kg';
+            state.sessions = parsed.sessions;
+            state.logs = parsed.logs || {};
+            if (!state.sessions.some(s => s.id === state.activeSessionId)) {
+                state.activeSessionId = state.sessions[0]?.id;
+            }
+            saveState();
+            closeModal('backup-modal');
+            renderDashboard();
+        }
+
+        function restoreFromBackupCode() {
+            const raw = document.getElementById('backup-import-input').value.trim();
+            if (!raw) return;
+            try {
+                const decoded = decodeURIComponent(escape(atob(raw)));
+                applyImportedState(JSON.parse(decoded));
+                showToast('Workout history & exercises restored!', 'gym');
+            } catch (e) {
+                showToast('Invalid backup code.', 'rose');
+            }
+        }
+
+        // On iPhone, blob downloads are unreliable inside a Home Screen app, so hand the file to the
+        // share sheet ("Save to Files", AirDrop, Mail...). Falls back to a normal download elsewhere.
+        // Must be called straight from a tap — iOS rejects share() once the gesture has passed.
+        async function saveFile(blob, filename) {
+            const file = new File([blob], filename, { type: blob.type });
+            if (navigator.maxTouchPoints > 0 && navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({ files: [file] });
+                    return 'shared';
+                } catch (e) {
+                    if (e.name === 'AbortError') return 'cancelled';
+                }
+            }
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 10000);
+            return 'downloaded';
+        }
+
+        async function downloadJsonBackup() {
+            const payload = saveLocalCacheOnly();
+            const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+            const result = await saveFile(blob, `pulsegym-backup-${formatDateKey(new Date())}.json`);
+            if (result !== 'cancelled') {
+                markBackedUp();
+                showToast('Saved .json backup!', 'gym');
+            }
+        }
+
+        function uploadJsonBackup(event) {
+            const file = event.target.files?.[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                try {
+                    applyImportedState(JSON.parse(String(evt.target.result || '')));
+                    showToast('Restored from .json file!', 'gym');
+                } catch (e) {
+                    showToast('Invalid .json backup file.', 'rose');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        async function downloadEmbeddedHtmlApp() {
+            try {
+                const embeddedPayload = {
+                    dnaVersion: 2,
+                    unit: state.unit,
+                    sessions: state.sessions,
+                    logs: state.logs
+                };
+                // Escape "<" so an exercise name containing a closing script tag can't break the page
+                const json = JSON.stringify(embeddedPayload, null, 16).replace(/</g, '\\u003c');
+                const replacement =
+                    '/* __EMBEDDED_GYM_DNA_START__ */\n' +
+                    '            return ' + json + ';\n' +
+                    '            /* __EMBEDDED_GYM_DNA_END__ */';
+
+                // Snapshot the page with every modal closed, otherwise this backup modal opens on launch
+                const snapshot = document.documentElement.cloneNode(true);
+                snapshot.querySelectorAll('[id$="-modal"]').forEach(m => {
+                    m.classList.add('hidden');
+                    m.classList.remove('flex');
+                });
+                const toasts = snapshot.querySelector('#toast-container');
+                if (toasts) toasts.innerHTML = '';
+
+                const rawHtml = '<!DOCTYPE html>\n' + snapshot.outerHTML;
+                const pattern = /\/\* __EMBEDDED_GYM_DNA_START__ \*\/[\s\S]*?\/\* __EMBEDDED_GYM_DNA_END__ \*\//;
+                // Function form, so "$&" or "$'" inside exercise names aren't treated as replace patterns
+                const updatedHtml = rawHtml.replace(pattern, () => replacement);
+
+                const blob = new Blob([updatedHtml], { type: 'text/html;charset=utf-8' });
+                const result = await saveFile(blob, 'index.html');
+                if (result !== 'cancelled') {
+                    markBackedUp();
+                    showToast('Saved index.html with your workouts baked in!', 'gym');
+                }
+            } catch (e) {
+                showToast('Download blocked in this preview mode.', 'rose');
+            }
+        }
+
+        // Reminders & iPhone .ICS Calendar Alarm Generator
+        function openRemindersModal() {
+            openModal('reminders-modal');
+        }
+
+        function sendTestGymNotification() {
+            if (!('Notification' in window)) {
+                showToast('Use the .ics button above for native iPhone lock-screen alarms!', 'hiit');
+                return;
+            }
+            Notification.requestPermission().then(async perm => {
+                if (perm !== 'granted') {
+                    showToast('Tap the .ics button for guaranteed iPhone Calendar alarms!', 'hiit');
+                    return;
+                }
+                const title = 'PulseGym — Time to Train! 💪';
+                const options = { body: 'Start with 10 mins HIIT on the Assault Bike before hitting your sets.' };
+                try {
+                    // iOS Home Screen apps only allow notifications shown through the service worker
+                    const reg = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistration() : null;
+                    if (reg) {
+                        await reg.showNotification(title, options);
+                    } else {
+                        new Notification(title, options);
+                    }
+                    showToast('Test notification sent!', 'gym');
+                } catch (e) {
+                    showToast('Tap the .ics button for guaranteed iPhone Calendar alarms!', 'hiit');
+                }
+            });
+        }
+
+        function downloadGymIcsAlarms() {
+            const timeVal = document.getElementById('gym-reminder-time').value || '17:30';
+            const leadMins = parseInt(document.getElementById('gym-reminder-lead').value, 10) || 30;
+            const [hh, mm] = timeVal.split(':').map(Number);
+
+            // Start on the next Mon/Tue/Thu/Sat so the series doesn't add a stray event today
+            const firstDay = new Date();
+            while (![1, 2, 4, 6].includes(firstDay.getDay())) {
+                firstDay.setDate(firstDay.getDate() + 1);
+            }
+            const dtStart = `${formatDateKey(firstDay).replace(/-/g, '')}T${String(hh).padStart(2, '0')}${String(mm).padStart(2, '0')}00`;
+
+            const icsLines = [
+                'BEGIN:VCALENDAR',
+                'VERSION:2.0',
+                'PRODID:-//PulseGym//4-Day Split//EN',
+                'CALSCALE:GREGORIAN',
+                'BEGIN:VEVENT',
+                'UID:pulsegym-4daysplit@pulsegym.local',
+                `DTSTART:${dtStart}`,
+                'DURATION:PT1H15M',
+                'RRULE:FREQ=WEEKLY;BYDAY=MO,TU,TH,SA',
+                'SUMMARY:💪 PulseGym Session + 10m Assault Bike HIIT',
+                'DESCRIPTION:1. Chest & Triceps (10m HIIT)\\n2. Back & Biceps (10m HIIT)\\n3. Shoulders & Legs (10m HIIT)\\n4. Cardio Session',
+                'BEGIN:VALARM',
+                `TRIGGER:-PT${leadMins}M`,
+                'ACTION:DISPLAY',
+                'DESCRIPTION:PulseGym Workout Starting Soon',
+                'END:VALARM',
+                'END:VEVENT',
+                'END:VCALENDAR'
+            ];
+
+            const blob = new Blob([icsLines.join('\r\n')], { type: 'text/calendar;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'pulsegym-schedule.ics';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 10000);
+            showToast('Downloaded iPhone Calendar Alarms (.ics)!', 'gym');
+        }
+
+        // Reset Functions
+        function clearCurrentWeekWorkoutLogs() {
+            if (!confirm(`Clear all logs for ${getWeekRangeText(state.weekOffset)}?`)) return;
+            const weekKey = getWeekKey(state.weekOffset);
+            delete state.logs[weekKey];
+            saveState();
+            closeModal('reset-modal');
+            renderDashboard();
+            showToast('Cleared logs for this week.', 'gym');
+        }
+
+        function clearAllWorkoutHistory() {
+            if (!confirm('Delete ALL logged weights and HIIT history? This cannot be undone — save a .json backup first if unsure.')) return;
+            state.logs = {};
+            saveState();
+            closeModal('reset-modal');
+            renderDashboard();
+            showToast('All workout logs cleared to 0.', 'rose');
+        }
+
+        function restoreDefaultSplitDNA() {
+            if (!confirm('Replace your exercise list with the default 4-day split? Custom exercises will be removed.')) return;
+            const defaults = createDefaultGymDNA();
+            state.sessions = defaults.sessions;
+            state.activeSessionId = 'session-1';
+            saveState();
+            closeModal('reset-modal');
+            renderDashboard();
+            showToast('Restored default 4-day split exercises!', 'gym');
+        }
+
+        // Theme & Utilities
+        function initTheme() {
+            let saved = null;
+            try { saved = localStorage.getItem('pulsegym_theme_v1'); } catch (e) {}
+            if (saved === 'light') {
+                document.documentElement.classList.remove('dark');
+            } else {
+                document.documentElement.classList.add('dark');
+            }
+            updateThemeIcon();
+        }
+
+        function toggleTheme() {
+            const isDark = document.documentElement.classList.toggle('dark');
+            try { localStorage.setItem('pulsegym_theme_v1', isDark ? 'dark' : 'light'); } catch (e) {}
+            updateThemeIcon();
+        }
+
+        function updateThemeIcon() {
+            const isDark = document.documentElement.classList.contains('dark');
+            const el = document.getElementById('theme-icon');
+            if (!el) return;
+            el.innerHTML = isDark
+                ? '<svg class="w-4 h-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>'
+                : '<svg class="w-4 h-4 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>';
+        }
+
+        function showToast(msg, tone = 'gym') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const bg = tone === 'hiit' ? 'bg-hiit-500' : (tone === 'rose' ? 'bg-rose-600' : 'bg-gym-600');
+            toast.className = `${bg} text-white text-xs font-extrabold px-3.5 py-2.5 rounded-xl shadow-lg transition-all duration-300`;
+            toast.textContent = msg;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 250);
+            }, 2200);
+        }
+
+        // Trophy card + confetti + rising chime when a ticked set beats the previous best.
+        // pointer-events-none, so it never blocks the next tap.
+        function celebratePB(ex, track, set) {
+            document.getElementById('pb-celebration')?.remove();
+            const overlay = document.createElement('div');
+            overlay.id = 'pb-celebration';
+            overlay.setAttribute('role', 'status');
+            overlay.className = 'fixed inset-0 z-[60] pointer-events-none overflow-hidden flex items-center justify-center px-6';
+
+            const colors = ['#10b981', '#f97316', '#f59e0b', '#6366f1', '#f43f5e', '#34d399'];
+            const confetti = Array.from({ length: 36 }, (_, i) => {
+                const left = Math.random() * 100;
+                const drift = Math.round((Math.random() - 0.5) * 160);
+                const duration = (1.4 + Math.random() * 1.2).toFixed(2);
+                const delay = (Math.random() * 0.35).toFixed(2);
+                return `<span class="confetti-piece" style="left:${left}%;background:${colors[i % colors.length]};--drift:${drift}px;animation-duration:${duration}s;animation-delay:${delay}s"></span>`;
+            }).join('');
+
+            overlay.innerHTML = `
+                ${confetti}
+                <div class="animate-pb-pop rounded-3xl px-6 py-5 text-center bg-gradient-to-br from-amber-400 via-amber-500 to-hiit-500 text-slate-950 shadow-2xl shadow-amber-500/40 max-w-xs">
+                    <div class="text-4xl leading-none">🏆</div>
+                    <p class="mt-2 text-xs font-extrabold uppercase tracking-widest">New PB!</p>
+                    <p class="mt-1 text-2xl font-black font-mono">${escapeHtml(formatSetsSummary([set], track))}</p>
+                    <p class="mt-1 text-xs font-bold opacity-80">${escapeHtml(ex?.name || '')}</p>
+                </div>`;
+            document.body.appendChild(overlay);
+
+            [784, 988, 1319].forEach((freq, i) => setTimeout(() => playBeep(freq, 0.16), i * 120));
+            setTimeout(() => {
+                overlay.style.transition = 'opacity 0.35s';
+                overlay.style.opacity = '0';
+                setTimeout(() => overlay.remove(), 400);
+            }, 2600);
+        }
+
+        function escapeHtml(str) {
+            return String(str || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        // Initialize immediately
+        initTheme();
+        loadInitialState();
+        renderDashboard();
+
+        // Offline support at the gym: cache the app shell (needs sw.js next to index.html; skipped if missing)
+        if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').catch(() => {});
+            });
+        }
+
+        // Ask the browser not to evict saved workouts when the phone is low on space
+        if (navigator.storage && navigator.storage.persist) {
+            navigator.storage.persist().catch(() => {});
+        }
+    </script>
+</body>
+</html>
