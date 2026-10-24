@@ -228,7 +228,7 @@
                     <h2 id="kpi-hiit-done" class="text-xl sm:text-2xl font-extrabold tracking-tight whitespace-nowrap">0 / 3</h2>
                     <span id="kpi-hiit-cals" class="text-[10px] font-bold text-hiit-500 truncate">0 kcal / 0W</span>
                 </div>
-                <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-1.5 truncate">10m Pre-Weights Warmups</p>
+                <p id="kpi-hiit-subtitle" class="text-[11px] text-slate-400 dark:text-slate-500 mt-1.5 truncate">10m Pre-Weights Warmups</p>
             </div>
 
             <!-- KPI 3: Weekly Volume Lifted -->
@@ -330,17 +330,42 @@
                                     <span class="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-hiit-500 text-white">Pre-Weights Mandatory</span>
                                     <span id="hiit-status-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-900/10 dark:bg-white/10 text-slate-700 dark:text-slate-200">Pending</span>
                                 </div>
-                                <h3 class="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white mt-1">10 Mins Assault Bike HIIT Warmup</h3>
-                                <p class="text-[11px] text-slate-600 dark:text-slate-300">Complete your 10-minute Assault Bike intervals before starting the weights below.</p>
+                                <h3 id="hiit-title" class="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white mt-1">10 Min Assault Bike HIIT Warmup</h3>
+                                <p class="text-[11px] text-slate-600 dark:text-slate-300">Complete your Assault Bike intervals before starting the weights below.</p>
+                                <!-- Interval plan: presets or custom sprint / easy / rounds -->
+                                <div class="mt-2 flex items-center gap-2">
+                                    <label for="hiit-plan-select" class="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 shrink-0">Intervals</label>
+                                    <select id="hiit-plan-select" onchange="handleHiitPlanChange()"
+                                        class="min-w-0 flex-1 px-2 py-1.5 rounded-lg bg-white/85 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-[11px] font-bold text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-hiit-500">
+                                        <!-- Populated dynamically -->
+                                    </select>
+                                </div>
+                                <div id="hiit-custom-row" class="hidden mt-2 grid grid-cols-3 gap-2">
+                                    <label class="block">
+                                        <span class="block text-[9px] font-bold uppercase text-slate-500 dark:text-slate-400 mb-0.5">Sprint (s)</span>
+                                        <input id="hiit-custom-work" type="text" inputmode="numeric" autocomplete="off" onchange="saveCustomHiitPlan()"
+                                            class="w-full px-2 py-1.5 rounded-lg bg-white/85 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-mono font-bold text-center focus:outline-none focus:ring-2 focus:ring-hiit-500">
+                                    </label>
+                                    <label class="block">
+                                        <span class="block text-[9px] font-bold uppercase text-slate-500 dark:text-slate-400 mb-0.5">Easy (s)</span>
+                                        <input id="hiit-custom-rest" type="text" inputmode="numeric" autocomplete="off" onchange="saveCustomHiitPlan()"
+                                            class="w-full px-2 py-1.5 rounded-lg bg-white/85 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-mono font-bold text-center focus:outline-none focus:ring-2 focus:ring-hiit-500">
+                                    </label>
+                                    <label class="block">
+                                        <span class="block text-[9px] font-bold uppercase text-slate-500 dark:text-slate-400 mb-0.5">Rounds</span>
+                                        <input id="hiit-custom-rounds" type="text" inputmode="numeric" autocomplete="off" onchange="saveCustomHiitPlan()"
+                                            class="w-full px-2 py-1.5 rounded-lg bg-white/85 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-mono font-bold text-center focus:outline-none focus:ring-2 focus:ring-hiit-500">
+                                    </label>
+                                </div>
                             </div>
                         </div>
 
-                        <!-- Right: Built-in 10:00 HIIT Timer -->
+                        <!-- Right: Built-in HIIT interval timer -->
                         <div class="flex items-center justify-between sm:justify-end gap-2 bg-white/85 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 px-3 py-2 rounded-2xl shrink-0">
                             <div class="text-left sm:text-right pr-1">
                                 <div class="flex items-center gap-1.5">
                                     <span id="hiit-phase-pill" class="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-hiit-500/20 text-hiit-500">READY</span>
-                                    <span class="text-[10px] font-semibold text-slate-400">10m HIIT</span>
+                                    <span id="hiit-round-label" class="text-[10px] font-semibold text-slate-400 whitespace-nowrap">10m HIIT</span>
                                 </div>
                                 <div id="hiit-timer-display" class="text-lg sm:text-xl font-black font-mono tracking-tight text-slate-900 dark:text-white leading-tight">10:00</div>
                             </div>
@@ -348,7 +373,7 @@
                                 <button type="button" onclick="toggleHiitTimer()" id="hiit-start-btn" class="px-3 py-2 rounded-xl text-xs font-extrabold bg-hiit-500 hover:bg-hiit-600 text-white shadow-sm transition-all">
                                     Start
                                 </button>
-                                <button type="button" onclick="resetHiitTimer()" title="Reset 10:00 Timer" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors">
+                                <button type="button" onclick="resetHiitTimer()" title="Reset HIIT timer" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors">
                                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                                 </button>
                             </div>
@@ -855,7 +880,7 @@
         <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-sm w-full p-5 shadow-2xl modal-sheet overflow-y-auto overscroll-contain">
             <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
                 <div class="min-w-0">
-                    <h3 class="text-base font-bold">🏋️ Plate Calculator</h3>
+                    <h3 class="text-base font-bold">🏋️ Plates & Warm-up</h3>
                     <p id="plates-exercise-name" class="text-[11px] text-slate-500 dark:text-slate-400 truncate"></p>
                 </div>
                 <button onclick="closeModal('plates-modal')" aria-label="Close plate calculator" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
@@ -879,6 +904,11 @@
             </div>
 
             <div id="plates-result" class="mt-4">
+                <!-- Populated dynamically -->
+            </div>
+
+            <!-- Warm-up ramp up to the total above -->
+            <div id="warmup-result" class="mt-4">
                 <!-- Populated dynamically -->
             </div>
         </div>
@@ -981,7 +1011,43 @@
 
         // Timers count down against a wall-clock end time, because iOS pauses setInterval
         // while the screen is locked or the app is in the background.
-        let hiitTimerSeconds = 600; // 10:00
+        // HIIT interval plan: each round is the easy part then the sprint, so the warmup ends on a sprint.
+        // Kept on this device only (like the reminder times).
+        const HIIT_SETTINGS_KEY = 'pulsegym_hiit_v1';
+        const HIIT_PRESETS = {
+            '30-30': { work: 30, rest: 30, rounds: 10, name: '30s sprint / 30s easy × 10' },
+            '20-40': { work: 20, rest: 40, rounds: 10, name: '20s sprint / 40s easy × 10' },
+            '40-20': { work: 40, rest: 20, rounds: 10, name: '40s sprint / 20s easy × 10' },
+            tabata: { work: 20, rest: 10, rounds: 8, name: 'Tabata: 20s sprint / 10s easy × 8' }
+        };
+        const HIIT_LIMITS = { work: [5, 300], rest: [0, 300], rounds: [1, 60] };
+
+        function isValidHiitPlan(plan) {
+            return Object.entries(HIIT_LIMITS).every(([k, [min, max]]) => Number.isInteger(plan?.[k]) && plan[k] >= min && plan[k] <= max)
+                && plan.rounds * (plan.work + plan.rest) <= 3600;
+        }
+
+        // { preset, work, rest, rounds }
+        function getHiitPlan() {
+            try {
+                const saved = JSON.parse(localStorage.getItem(HIIT_SETTINGS_KEY) || 'null');
+                if (saved?.preset === 'custom' && isValidHiitPlan(saved)) return { preset: 'custom', work: saved.work, rest: saved.rest, rounds: saved.rounds };
+                if (HIIT_PRESETS[saved?.preset]) return { preset: saved.preset, ...HIIT_PRESETS[saved.preset] };
+            } catch (e) {}
+            return { preset: '30-30', ...HIIT_PRESETS['30-30'] };
+        }
+
+        function hiitTotalSeconds(plan = getHiitPlan()) {
+            return plan.rounds * (plan.work + plan.rest);
+        }
+
+        // "10m" or "7:30", for labels like "+10m HIIT"
+        function hiitShortLength(plan = getHiitPlan()) {
+            const total = hiitTotalSeconds(plan);
+            return total % 60 === 0 ? `${total / 60}m` : formatSecondsMMSS(total).replace(/^0/, '');
+        }
+
+        let hiitTimerSeconds = hiitTotalSeconds();
         let hiitEndsAt = 0;
         let hiitTimerTarget = null; // { weekKey, sessionId } the running warmup belongs to
         let hiitTimerInterval = null;
@@ -1195,6 +1261,7 @@
             if ('track' in raw && !(Array.isArray(raw.track) && raw.track.length === 2 && raw.track.every(isMetric))) delete ex.track;
             if ('bar' in raw && !isSafeId(raw.bar)) delete ex.bar;
             if ('supersetId' in raw && !isSafeId(raw.supersetId)) delete ex.supersetId;
+            if ('plateauHiddenUntil' in raw && !isDateKey(raw.plateauHiddenUntil)) delete ex.plateauHiddenUntil;
             return ex;
         }
 
@@ -1549,6 +1616,51 @@
             return { type: 'hold', kg: String(topKg), reps: range.high };
         }
 
+        // Plateau check: a lift whose last PLATEAU_SESSIONS logged sessions all fell short of the best
+        // estimated 1RM before them, and that's still being trained (logged within PLATEAU_RECENT_WEEKS).
+        const PLATEAU_SESSIONS = 3;
+        const PLATEAU_RECENT_WEEKS = 3;
+
+        // Best estimated 1RM and top weight for each week the exercise was logged, oldest first
+        function getE1rmHistory(exerciseId) {
+            return Object.keys(state.logs).sort().flatMap(weekKey => {
+                let e1rm = 0;
+                let topKg = 0;
+                Object.values(state.logs[weekKey] || {}).forEach(sLog => {
+                    (sLog?.exercises?.[exerciseId] || []).forEach(st => {
+                        if (!st.done) return;
+                        e1rm = Math.max(e1rm, setOneRepMax(st));
+                        topKg = Math.max(topKg, parseFloat(st.weight) || 0);
+                    });
+                });
+                return e1rm > 0 ? [{ weekKey, e1rm, topKg }] : [];
+            });
+        }
+
+        // { deloadKg } for a stalled lift, judged on weeks before `weekKey`; null otherwise or while hidden
+        function getPlateau(ex, track, weekKey) {
+            if (!isWeightReps(track) || (ex.plateauHiddenUntil && weekKey < ex.plateauHiddenUntil)) return null;
+            const history = getE1rmHistory(ex.id).filter(h => h.weekKey < weekKey);
+            if (history.length <= PLATEAU_SESSIONS) return null;
+            const recent = history.slice(-PLATEAU_SESSIONS);
+            const bestBefore = Math.max(...history.slice(0, -PLATEAU_SESSIONS).map(h => h.e1rm));
+            if (recent.some(h => h.e1rm > bestBefore + 1e-9)) return null;
+            if (weekOffsetForKey(weekKey) - weekOffsetForKey(recent[recent.length - 1].weekKey) > PLATEAU_RECENT_WEEKS) return null;
+            // A lighter week: 90% of the last top weight, to the nearest 2.5 kg / 5 lb
+            const step = state.unit === 'lbs' ? 5 : 2.5;
+            const lighter = Math.round((Number(formatWeight(recent[recent.length - 1].topKg)) * 0.9) / step) * step;
+            return lighter > 0 ? { deloadKg: parseWeightInput(lighter) } : null;
+        }
+
+        function hidePlateau(exerciseId) {
+            const found = findExercise(exerciseId);
+            if (!found) return;
+            found.ex.plateauHiddenUntil = getWeekKey(state.weekOffset + 3);
+            saveState();
+            renderDashboard();
+            showToast('Plateau alert hidden for 3 weeks', 'gym');
+        }
+
         // Weight × reps: "60kg × 10, 10, 8" (constant weight) or "60×10 · 62.5×8 kg".
         // Anything else: "15, 12, 12 reps" (single measure) or "5.2 km / 25 min" per set.
         function formatSetsSummary(sets, track) {
@@ -1667,7 +1779,7 @@
                             ${isDone
                                 ? '<span class="text-[10px] font-extrabold text-gym-500">✓ Done</span>'
                                 : (session.requiresAssaultBike
-                                    ? `<span class="text-[9px] font-bold ${hiitDone ? 'text-hiit-500' : 'opacity-60'}">${hiitDone ? '🔥 HIIT ✓' : '+10m HIIT'}</span>`
+                                    ? `<span class="text-[9px] font-bold ${hiitDone ? 'text-hiit-500' : 'opacity-60'}">${hiitDone ? '🔥 HIIT ✓' : `+${hiitShortLength()} HIIT`}</span>`
                                     : '<span class="text-[9px] font-bold opacity-60">Cardio</span>')
                             }
                         </div>
@@ -1712,7 +1824,7 @@
                 if (sLog.hiitDone) {
                     btn.className = 'w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 bg-hiit-500 text-white border-2 border-hiit-500 shadow-md shadow-hiit-500/30 animate-pop';
                     btn.innerHTML = '<svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>';
-                    badge.textContent = '10m HIIT Completed 🔥';
+                    badge.textContent = `${hiitShortLength()} HIIT Completed 🔥`;
                     badge.className = 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-gym-500 text-white';
                 } else {
                     btn.className = 'w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 bg-white/80 dark:bg-slate-900 border-2 border-hiit-500/50 text-hiit-500 hover:bg-hiit-500/10';
@@ -1801,6 +1913,22 @@
                             </div>
                             ${hintHtml}
                         </div>` : '';
+                // Stalled lift: offer a lighter week (not when the hint above already says to add weight)
+                const plateau = openSets.length && hint?.type !== 'up' ? getPlateau(ex, track, weekKey) : null;
+                const plateauApplied = plateau && openSets.every(st => Math.abs((parseFloat(st.weight) || 0) - parseFloat(plateau.deloadKg)) < 0.01);
+                const plateauHtml = plateau ? `
+                        <div data-plateau="${ex.id}" class="mt-2 flex items-center justify-between gap-2 px-2.5 py-2 rounded-xl bg-amber-500/10 border border-amber-500/25">
+                            <div class="min-w-0">
+                                <p class="text-[10px] font-extrabold uppercase tracking-wider text-amber-600 dark:text-amber-400">⚠️ Plateau</p>
+                                <p class="text-[11px] font-semibold text-slate-600 dark:text-slate-300 mt-0.5">No new best in your last ${PLATEAU_SESSIONS} sessions. A lighter week often gets things moving again.</p>
+                            </div>
+                            <div class="shrink-0 flex flex-col items-end gap-1">
+                                ${plateauApplied
+                                    ? `<span class="text-[11px] font-extrabold text-amber-600 dark:text-amber-400">${formatWeight(plateau.deloadKg)}${state.unit} ✓</span>`
+                                    : `<button type="button" onclick="applyWeightSuggestion('${ex.id}', '${plateau.deloadKg}', 'deload')" class="px-2.5 py-1.5 rounded-lg text-[11px] font-extrabold bg-amber-500/15 hover:bg-amber-500/25 text-amber-600 dark:text-amber-400 border border-amber-500/30 active:scale-95 transition-all">Try ${formatWeight(plateau.deloadKg)}${state.unit}</button>`}
+                                <button type="button" onclick="hidePlateau('${ex.id}')" class="text-[10px] font-bold text-slate-400 hover:underline">Hide</button>
+                            </div>
+                        </div>` : '';
 
                 return `
                     <div class="relative p-3 sm:p-4 rounded-2xl bg-slate-50/90 dark:bg-slate-800/45 border border-slate-200/80 dark:border-slate-800 transition-all ${
@@ -1844,6 +1972,7 @@
                             </div>
                         </div>
                         ${lastHtml}
+                        ${plateauHtml}
 
                         <!-- Sets Table Header -->
                         <div class="grid grid-cols-12 gap-2 items-center text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mt-2.5 px-1">
@@ -1901,7 +2030,7 @@
                         <!-- Add / Remove Set Footer -->
                         <div class="flex items-center justify-between mt-2.5 pt-2 border-t border-slate-200/50 dark:border-slate-800/70 text-[11px] font-semibold">
                             <button type="button" onclick="addSetToExercise('${ex.id}')" class="text-gym-600 dark:text-gym-400 hover:underline">+ Add Set</button>
-                            ${firstMetric === 'weight' ? `<button type="button" onclick="openPlatesModal('${ex.id}')" class="text-indigo-500 dark:text-indigo-400 hover:underline">🏋️ Plates</button>` : ''}
+                            ${firstMetric === 'weight' ? `<button type="button" onclick="openPlatesModal('${ex.id}')" class="text-indigo-500 dark:text-indigo-400 hover:underline">🏋️ Plates & warm-up</button>` : ''}
                             ${sets.length > 1 ? `<button type="button" onclick="removeLastSetFromExercise('${ex.id}')" class="text-slate-400 hover:text-rose-500">− Remove Last Set</button>` : ''}
                         </div>
                         ${supersetChip}
@@ -2282,7 +2411,7 @@
             saveState();
             renderDashboard();
             if (sLog.hiitDone) {
-                showToast('10 Mins Assault Bike HIIT logged! Time to lift 🔥', 'hiit');
+                showToast('Assault Bike HIIT logged! Time to lift 🔥', 'hiit');
             }
         }
 
@@ -2360,7 +2489,7 @@
             saveState();
         }
 
-        function applyWeightSuggestion(exerciseId, kg) {
+        function applyWeightSuggestion(exerciseId, kg, kind = 'up') {
             const sLog = ensureSessionLog(getWeekKey(state.weekOffset), state.activeSessionId);
             (sLog.exercises[exerciseId] || []).forEach(st => {
                 if (!st.done) st.weight = kg;
@@ -2368,7 +2497,9 @@
             markSetsTouched(sLog.exercises[exerciseId]);
             saveState();
             renderDashboard();
-            showToast(`Remaining sets set to ${formatWeight(kg)}${state.unit} — go get it! 💪`, 'gym');
+            showToast(kind === 'deload'
+                ? `Lighter week: remaining sets at ${formatWeight(kg)}${state.unit} 👍`
+                : `Remaining sets set to ${formatWeight(kg)}${state.unit} — go get it! 💪`, 'gym');
         }
 
         function addSetToExercise(exerciseId) {
@@ -2611,23 +2742,87 @@
             return `${m}:${s}`;
         }
 
+        // Where a countdown is in the plan: round number and 'rest' (easy) or 'work' (sprint)
+        function hiitPhaseAt(secondsRemaining, plan = getHiitPlan()) {
+            const total = hiitTotalSeconds(plan);
+            const cycle = plan.work + plan.rest;
+            const elapsed = Math.min(total - 1, Math.max(0, total - secondsRemaining));
+            return { round: Math.floor(elapsed / cycle) + 1, phase: elapsed % cycle < plan.rest ? 'rest' : 'work' };
+        }
+
         function updateHiitTimerUI() {
+            const plan = getHiitPlan();
+            const total = hiitTotalSeconds(plan);
+            const { round, phase } = hiitPhaseAt(hiitTimerSeconds, plan);
             document.getElementById('hiit-timer-display').textContent = formatSecondsMMSS(hiitTimerSeconds);
+            const inProgress = hiitTimerInterval || (hiitTimerSeconds > 0 && hiitTimerSeconds < total);
+            document.getElementById('hiit-round-label').textContent = inProgress ? `Round ${round}/${plan.rounds}` : `${hiitShortLength(plan)} HIIT`;
             const phaseEl = document.getElementById('hiit-phase-pill');
             if (!hiitTimerInterval) {
-                phaseEl.textContent = hiitTimerSeconds === 600 ? 'READY' : (hiitTimerSeconds === 0 ? 'DONE' : 'PAUSED');
+                phaseEl.textContent = hiitTimerSeconds === total ? 'READY' : (hiitTimerSeconds === 0 ? 'DONE' : 'PAUSED');
                 phaseEl.className = 'text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-hiit-500/20 text-hiit-500';
                 return;
             }
-            // Alternate 30s SPRINT / 30s CRUISE visual cue
-            const secInMinute = hiitTimerSeconds % 60;
-            if (secInMinute > 30 || secInMinute === 0) {
-                phaseEl.textContent = '30s CRUISE';
+            if (phase === 'rest') {
+                phaseEl.textContent = `${plan.rest}s CRUISE`;
                 phaseEl.className = 'text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-gym-500 text-white';
             } else {
-                phaseEl.textContent = '30s SPRINT 🔥';
+                phaseEl.textContent = `${plan.work}s SPRINT 🔥`;
                 phaseEl.className = 'text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-rose-600 text-white animate-pulse-fast';
             }
+        }
+
+        // Plan picker, labels that mention the warmup's length, and the timer face
+        function renderHiitPlan() {
+            const plan = getHiitPlan();
+            const total = hiitTotalSeconds(plan);
+            const select = document.getElementById('hiit-plan-select');
+            if (!select.options.length) {
+                select.innerHTML = Object.entries(HIIT_PRESETS)
+                    .map(([key, p]) => `<option value="${key}">${escapeHtml(p.name)} · ${hiitShortLength(p).replace(/m$/, ' min')}</option>`)
+                    .join('') + '<option value="custom">Custom…</option>';
+            }
+            select.value = plan.preset;
+            document.getElementById('hiit-custom-row').classList.toggle('hidden', plan.preset !== 'custom');
+            ['work', 'rest', 'rounds'].forEach(key => { document.getElementById(`hiit-custom-${key}`).value = String(plan[key]); });
+            document.getElementById('hiit-title').textContent =
+                `${total % 60 === 0 ? `${total / 60} Min` : formatSecondsMMSS(total)} Assault Bike HIIT Warmup`;
+            document.getElementById('kpi-hiit-subtitle').textContent = `${hiitShortLength(plan)} Pre-Weights Warmups`;
+            updateHiitTimerUI();
+        }
+
+        function setHiitPlan(plan) {
+            const total = hiitTotalSeconds();
+            if ((hiitTimerInterval || (hiitTimerSeconds > 0 && hiitTimerSeconds < total))
+                && !confirm('Changing the intervals restarts the HIIT timer. Continue?')) {
+                renderHiitPlan();
+                return;
+            }
+            try { localStorage.setItem(HIIT_SETTINGS_KEY, JSON.stringify(plan)); } catch (e) {}
+            resetHiitTimer();
+            renderHiitPlan();
+            renderDashboard(); // tabs and badges show the warmup's length
+            const p = getHiitPlan();
+            showToast(`HIIT: ${p.work}s sprint / ${p.rest}s easy × ${p.rounds} (${hiitShortLength(p)})`, 'hiit');
+        }
+
+        function handleHiitPlanChange() {
+            const preset = document.getElementById('hiit-plan-select').value;
+            const current = getHiitPlan();
+            setHiitPlan(preset === 'custom'
+                ? { preset: 'custom', work: current.work, rest: current.rest, rounds: current.rounds }
+                : { preset });
+        }
+
+        function saveCustomHiitPlan() {
+            const read = key => parseInt(document.getElementById(`hiit-custom-${key}`).value, 10);
+            const plan = { preset: 'custom', work: read('work'), rest: read('rest'), rounds: read('rounds') };
+            if (!isValidHiitPlan(plan)) {
+                showToast('Sprint 5–300s, easy 0–300s, 1–60 rounds, up to 60 min in total', 'rose');
+                renderHiitPlan();
+                return;
+            }
+            setHiitPlan(plan);
         }
 
         function toggleHiitTimer() {
@@ -2641,7 +2836,7 @@
                 updateWakeLock();
                 return;
             }
-            if (hiitTimerSeconds <= 0) hiitTimerSeconds = 600; // tapping "Done!" starts a fresh 10:00
+            if (hiitTimerSeconds <= 0) hiitTimerSeconds = hiitTotalSeconds(); // tapping "Done!" starts afresh
             hiitTimerTarget = { weekKey: getWeekKey(state.weekOffset), sessionId: state.activeSessionId };
             hiitEndsAt = Date.now() + hiitTimerSeconds * 1000;
             // Starting the bike warmup is the start of the workout
@@ -2664,10 +2859,11 @@
             if (hiitTimerSeconds === prev) return;
 
             if (hiitTimerSeconds > 0) {
-                // Beep at each 30s sprint/cruise switch — but not for switches missed while the phone was locked
-                const boundary = Math.ceil(hiitTimerSeconds / 30) * 30;
-                if (boundary < prev && boundary < 600 && prev - hiitTimerSeconds <= 2) {
-                    playBeep(boundary % 60 === 30 ? 980 : 620, 0.18);
+                // Beep at each sprint/easy switch (high for sprint) — but not for switches missed while the phone was locked
+                const before = hiitPhaseAt(prev);
+                const now = hiitPhaseAt(hiitTimerSeconds);
+                if ((before.phase !== now.phase || before.round !== now.round) && prev - hiitTimerSeconds <= 2) {
+                    playBeep(now.phase === 'work' ? 980 : 620, 0.18);
                 }
                 updateHiitTimerUI();
                 return;
@@ -2685,7 +2881,7 @@
             renderDashboard();
             updateHiitTimerUI();
             updateWakeLock();
-            showToast('10-Min Assault Bike HIIT Complete! 🔥', 'hiit');
+            showToast(`${hiitShortLength()} Assault Bike HIIT complete! 🔥`, 'hiit');
         }
 
         function resetHiitTimer() {
@@ -2693,7 +2889,7 @@
                 clearInterval(hiitTimerInterval);
                 hiitTimerInterval = null;
             }
-            hiitTimerSeconds = 600;
+            hiitTimerSeconds = hiitTotalSeconds();
             document.getElementById('hiit-start-btn').textContent = 'Start';
             updateHiitTimerUI();
             updateWakeLock();
@@ -2980,12 +3176,63 @@
             renderPlates();
         }
 
+        // Warm-up ramp to a working weight: the empty bar, then 50% × 5, 70% × 3 and 85% × 2, each rounded to
+        // what the plates can make (2 × the smallest plate). Steps that would repeat a weight or reach the
+        // working weight are skipped. Without a bar (machines), the ramp starts at 50% × 8.
+        function buildWarmupSets(total, bar, unit) {
+            const step = 2 * PLATE_SETS[unit][PLATE_SETS[unit].length - 1].size;
+            const ramp = bar > 0
+                ? [{ pct: 0, reps: 10 }, { pct: 0.5, reps: 5 }, { pct: 0.7, reps: 3 }, { pct: 0.85, reps: 2 }]
+                : [{ pct: 0.5, reps: 8 }, { pct: 0.7, reps: 5 }, { pct: 0.85, reps: 2 }];
+            const sets = [];
+            ramp.forEach(({ pct, reps }) => {
+                const weight = Math.max(bar, bar + Math.round((total * pct - bar) / step) * step);
+                const previous = sets.length ? sets[sets.length - 1].weight : -1;
+                if (weight > previous + 1e-9 && weight < total - 1e-9 && weight > 0) {
+                    sets.push({ weight: Math.round(weight * 100) / 100, reps });
+                }
+            });
+            return sets;
+        }
+
+        function renderWarmup(total, bar, unit) {
+            const out = document.getElementById('warmup-result');
+            const sets = isFinite(total) && total >= bar ? buildWarmupSets(total, bar, unit) : [];
+            if (!sets.length) {
+                out.innerHTML = isFinite(total) && total > 0 && total >= bar
+                    ? '<p class="text-[11px] text-slate-500 dark:text-slate-400 text-center">Light enough to start your working sets straight away.</p>'
+                    : '';
+                return;
+            }
+            out.innerHTML = `
+                <div class="flex items-center justify-between gap-2">
+                    <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Warm-up sets</p>
+                    <p class="text-[10px] font-bold text-slate-400">up to ${total} ${unit}</p>
+                </div>
+                <div class="mt-1.5 rounded-xl border border-slate-200/70 dark:border-slate-800 divide-y divide-slate-200/70 dark:divide-slate-800">
+                    ${sets.map((st, i) => {
+                        const plates = calculatePlates(st.weight, bar, unit).plates;
+                        const side = bar > 0 ? (plates.length ? `${plates.join(' + ')} each side` : 'Empty bar') : '';
+                        return `
+                            <div class="flex items-center justify-between gap-3 px-3 py-2">
+                                <div class="flex items-center gap-2 min-w-0">
+                                    <span class="text-[10px] font-extrabold font-mono px-1.5 py-0.5 rounded bg-hiit-500/15 text-hiit-600 dark:text-hiit-400">W${i + 1}</span>
+                                    <span class="text-sm font-extrabold font-mono">${st.weight} ${unit} × ${st.reps}</span>
+                                </div>
+                                <span class="text-[11px] text-slate-500 dark:text-slate-400 text-right">${side}</span>
+                            </div>`;
+                    }).join('')}
+                </div>
+                <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-2">Short rests between warm-ups, then your working sets at ${total} ${unit}.</p>`;
+        }
+
         function renderPlates() {
             const unit = state.unit;
             const out = document.getElementById('plates-result');
             const total = parseFloat(String(document.getElementById('plates-target').value).trim().replace(/,/g, '.'));
             const bar = BARS[document.getElementById('plates-bar').value][unit];
             const message = text => `<p class="text-xs text-slate-500 dark:text-slate-400 text-center py-6">${text}</p>`;
+            renderWarmup(total, bar, unit);
             if (!isFinite(total) || total <= 0) {
                 out.innerHTML = message('Enter the total weight you want on the bar.');
                 return;
@@ -3070,7 +3317,7 @@
                 list.innerHTML = `
                     <div class="py-10 px-4 text-center">
                         <p class="text-sm font-bold text-slate-700 dark:text-slate-200">No workouts logged yet</p>
-                        <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Tick off a set or your 10m HIIT and it'll show up here.</p>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Tick off a set or your HIIT warmup and it'll show up here.</p>
                     </div>`;
                 return;
             }
@@ -3674,7 +3921,7 @@
                 const firstDay = new Date();
                 while (firstDay.getDay() !== day) firstDay.setDate(firstDay.getDate() + 1);
 
-                const title = `💪 Day ${session.number} · ${session.name}${session.requiresAssaultBike ? ' + 10m Bike HIIT' : ''}`;
+                const title = `💪 Day ${session.number} · ${session.name}${session.requiresAssaultBike ? ` + ${hiitShortLength()} Bike HIIT` : ''}`;
                 const details = [
                     ...(session.requiresAssaultBike ? ['Start with 10 mins Assault Bike HIIT.', ''] : []),
                     ...session.exercises.map(ex => `• ${ex.name} — ${ex.target}`)
@@ -3841,6 +4088,7 @@
         initTheme();
         loadInitialState();
         renderDashboard();
+        renderHiitPlan();
 
         // Keep the "34 min so far" line in the session header ticking
         setInterval(renderSessionTiming, 30000);

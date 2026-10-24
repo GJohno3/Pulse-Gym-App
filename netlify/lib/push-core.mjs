@@ -143,7 +143,7 @@ function formatLead(minutes) {
 }
 
 export function reminderPayload(reminder, lead) {
-    const hiit = reminder.hiit ? ' · 10 min Assault Bike HIIT first' : '';
+    const hiit = reminder.hiit ? ' · Assault Bike HIIT first' : '';
     return {
         title: `💪 ${reminder.label}`,
         body: lead > 0 ? `Starts in ${formatLead(lead)}${hiit}` : `Time to train!${hiit}`,

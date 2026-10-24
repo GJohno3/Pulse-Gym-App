@@ -3,6 +3,9 @@
 [build]
   publish = "site"
   command = "npm run build"
+  # Skip the deploy (and its credits) when new commits only touch tests, docs or CI. A manual
+  # "Trigger deploy" or "Clear cache and deploy" always builds, as does anything the check can't compare.
+  ignore = "[ \"$CACHED_COMMIT_REF\" != \"$COMMIT_REF\" ] && git diff --quiet \"$CACHED_COMMIT_REF\" \"$COMMIT_REF\" -- site netlify netlify.toml package.json package-lock.json src tailwind.config.js"
 
 [build.environment]
   NODE_VERSION = "22"

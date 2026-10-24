@@ -20,6 +20,7 @@ tailwind.config.js     Tailwind theme (app colours and fonts)
 netlify/functions/     Push reminders: push.mjs (API at /api/push/*), push-reminders.mjs (runs every 5 min)
 netlify/lib/           Shared push logic (validation, due times, sending)
 netlify.toml           Build command, published folder, functions and security headers
+tests/                 Browser and server tests (npm test); run on GitHub for every push
 ```
 
 ## Deploying
@@ -27,6 +28,18 @@ netlify.toml           Build command, published folder, functions and security h
 Netlify is linked to this repository: every push to `main` is published automatically to the existing site address, so data saved on the phone carries over. Each deploy runs `npm run build`, which regenerates `site/styles.css` from the classes used in `index.html`.
 
 Keep the site on the same address — a new address starts with empty storage on the phone.
+
+Commits that only touch tests, docs or the GitHub workflow don't trigger a Netlify deploy (see `ignore` in `netlify.toml`); a manual "Trigger deploy" always builds.
+
+## Tests
+
+```
+npm install
+npx playwright install chromium   # first time only
+npm test                          # all suites; npm test -- push runs just the push ones
+```
+
+GitHub Actions (`.github/workflows/tests.yml`) runs the same tests on every push, and checks that the committed `site/styles.css` matches `index.html`. Screenshots from a failed run are attached to it.
 
 ## Push reminders
 
