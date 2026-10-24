@@ -2,7 +2,7 @@
 
 A 4-day split & Assault Bike HIIT tracker, built as an installable web app for iPhone (Safari → Share → Add to Home Screen).
 
-- **Everything runs on the phone.** Workouts are saved in the browser's local storage for the site's address — there is no server or account. Use **App / Export → Save .json** (or the in-app backup reminder) to keep a copy.
+- **Workouts stay on the phone.** They're saved in the browser's local storage for the site's address — no account, and logs are never sent anywhere. Use **App / Export → Save .json** (or the in-app backup reminder) to keep a copy.
 - **Works offline** at the gym via a service worker (`site/sw.js`).
 - **Push reminders** (optional, Reminders screen): a small Netlify function sends a notification before each training session. iPhone allows this for Home Screen apps only (iOS 16.4+).
 
