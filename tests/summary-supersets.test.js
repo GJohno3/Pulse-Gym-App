@@ -47,65 +47,116 @@ const check = (name, actual, expected) => {
         localStorage.setItem(STORAGE_KEY, JSON.stringify({
             dnaVersion: 2, unit: 'kg', sessions: createDefaultGymDNA().sessions, isCustomized: true, updatedAt: Date.now() + 1000,
             logs: {
-                [wk(-2)]: { 'session-1': { completed: false, exercises: { 'ex-101': [{ weight: '60', reps: '10', done: true }] } } },
-                [wk(-1)]: { 'session-1': { completed: true, hiitDone: true, hiitCals: '100', startedAt: t0, finishedAt: t0 + 50 * 60000,
-                    exercises: { 'ex-101': [{ weight: '62.5', reps: '10', done: true }, { weight: '62.5', reps: '8', done: true }] } } },
+                [wk(-2)]: { 'session-1': { completed: false, exercises: {
+                    'ex-101': [{ weight: '60', reps: '10', done: true }],
+                    'ex-102': [{ weight: '40', reps: '10', done: true }] } } },
+                [wk(-1)]: { 'session-1': { completed: true, hiitDone: true, hiitCals: '100', startedAt: t0, finishedAt: t0 + 50 * 60000, exercises: {
+                    'ex-101': [{ weight: '62.5', reps: '10', done: true }, { weight: '62.5', reps: '8', done: true }],
+                    'ex-102': [{ weight: '40', reps: '10', done: true }, { weight: '40', reps: '10', done: true }] } } },
                 [wk(0)]: {
-                    'session-1': { completed: true, hiitDone: true, hiitCals: '120', startedAt: t0, finishedAt: t0 + 70 * 60000,
-                        exercises: { 'ex-101': [{ weight: '65', reps: '10', done: true }] } },
+                    'session-1': { completed: true, hiitDone: true, hiitCals: '120', startedAt: t0, finishedAt: t0 + 70 * 60000, exercises: {
+                        'ex-101': [{ weight: '65', reps: '10', done: true }],
+                        'ex-102': [{ weight: '40', reps: '10', done: true }, { weight: '40', reps: '9', done: true }] } },
                     'session-2': { completed: false, exercises: { 'ex-201': [{ weight: '50', reps: '10', done: true }] } }
                 }
             }
         }));
     });
+    // This week: bench heavier (up), incline one rep short (not up), pulldowns first time (not counted)
     check('W1 subtitle', await page.textContent('#weekly-summary-subtitle'), 'This week vs last week');
     check('W2 tiles this week', await tiles(), [
         ['Sessions', '1/4', 'Same', 'was 1/4'],
-        ['Volume', '1,150 kg', '▲ 2%', 'was 1,125 kg'],
-        ['Sets', '2', 'Same', 'was 2'],
+        ['Lifts up', '1/2', '▼ 1', 'was 2/2'],
+        ['Sets', '4', 'Same', 'was 4'],
         ['Time', '1h 10m', '▲ 40%', 'was 50m'],
         ['PBs', '1', 'Same', 'was 1'],
         ['HIIT kcal', '120', '▲ 20%', 'was 100']
     ]);
-    check('W3 verdict up', await verdict(), 'Volume up 2% on last week 💪');
-    check('W4 progress bar full', await page.evaluate(() => [document.getElementById('weekly-summary-progress').classList.contains('hidden'), document.getElementById('weekly-summary-bar').style.width]), [false, '100%']);
-    check('W5 up tone is green', await page.$eval('#weekly-summary-grid > div:nth-child(2) p:nth-child(3)', el => el.className.includes('text-gym-600')), true);
+    check('W3 verdict', await verdict(), '1 of 2 lifts beat last time 💪 · 3 sessions to go');
+    check('W4 progress bar shows the share', await page.evaluate(() => [document.getElementById('weekly-summary-progress').classList.contains('hidden'), document.getElementById('weekly-summary-bar').style.width]), [false, '50%']);
+    check('W5 up tone is green', await page.$eval('#weekly-summary-grid > div:nth-child(4) p:nth-child(3)', el => el.className.includes('text-gym-600')), true);
+    check('W5b down tone stays neutral', await page.$eval('#weekly-summary-grid > div:nth-child(2) p:nth-child(3)', el => el.className.includes('text-slate-400')), true);
+    check('K1 lifts card', [await page.textContent('#kpi-lifts-up'), await page.textContent('#kpi-lift-pbs')], ['1 / 2', '1 PB']);
     await page.locator('#weekly-summary').scrollIntoViewIfNeeded();
     await page.locator('#weekly-summary').screenshot({ path: `${outPrefix}-summary.png` });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.screenshot({ path: `${outPrefix}-kpis.png` });
 
     // Past week: compared with the week before it
     await page.click('button[onclick="changeWeek(-1)"]');
     check('W6 past-week subtitle', await page.textContent('#weekly-summary-subtitle'), t => /^Week of \d+ \w+ vs the week before$/.test(t));
-    check('W7 past-week tiles', (await tiles()).map(t => t[2]), ['▲ New', '▲ 88%', '▲ 1', '▲ New', '▲ New', '▲ New']);
-    check('W8 past-week verdict', await verdict(), 'Volume up 88% on the week before 💪');
+    check('W7 past-week tiles', (await tiles()).map(t => t[2]), ['▲ New', '▲ New', '▲ 2', '▲ New', '▲ New', '▲ New']);
+    check('W8 past-week verdict', await verdict(), 'Both lifts beat last time 💪');
+    check('K2 lifts card follows the week', await page.textContent('#kpi-lifts-up'), '2 / 2');
     await page.click('button[onclick="changeWeek(1)"]');
 
-    // lbs
+    // lbs: same comparison
     await page.click('#unit-toggle-btn');
-    check('W9 volume in lbs', (await tiles())[1].slice(0, 2), ['Volume', '2,535 lbs']);
+    check('W9 lifts unchanged in lbs', [await page.textContent('#kpi-lifts-up'), (await tiles())[1][1]], ['1 / 2', '1/2']);
     await page.click('#unit-toggle-btn');
 
-    // Mid-week: behind last week so far
+    // Mid-week with nothing comparable yet: falls back to sessions
     await seed(() => {
         const s = JSON.parse(localStorage.getItem(STORAGE_KEY));
         delete s.logs[getWeekKey(0)]['session-1'];
         s.updatedAt = Date.now() + 2000;
         localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
     });
-    check('W10 so-far verdict', await verdict(), "44% of last week's volume so far · 4 sessions to go");
-    check('W11 bar shows progress', await page.evaluate(() => document.getElementById('weekly-summary-bar').style.width), '44%');
-    check('W12 down tone stays neutral', await page.$eval('#weekly-summary-grid > div:nth-child(2) p:nth-child(3)', el => [el.textContent, el.className.includes('text-slate-400')]), ['▼ 56%', true]);
+    check('W10 nothing to compare: sessions verdict', await verdict(), '0 of 4 sessions done (1 last week)');
+    check('W11 no bar, card shows a dash', [await page.evaluate(() => document.getElementById('weekly-summary-progress').classList.contains('hidden')), await page.textContent('#kpi-lifts-up')], [true, '–']);
+    check('W12 down tone stays neutral', await page.$eval('#weekly-summary-grid > div:nth-child(2) p:nth-child(3)', el => [el.textContent, el.className.includes('text-slate-400')]), ['▼ 2', true]);
 
     // Live update when a set is ticked
     await page.click('#session-tabs-grid button >> nth=1');
     const before = (await tiles())[2][1];
     await page.locator('button[aria-label="Log set 2"]').first().click();
     check('W13 ticking a set updates the card', [before, (await tiles())[2][1]], ['1', '2']);
+    await page.click('#session-tabs-grid button >> nth=0');
+    const benchInputs = page.locator('#exercises-list-container > div').first().locator('input[inputmode]');
+    await benchInputs.nth(0).fill('65'); await benchInputs.nth(0).blur();
+    await benchInputs.nth(1).fill('8'); await benchInputs.nth(1).blur();
+    await page.locator('button[aria-label="Log set 1"]').first().click();
+    check('W13b beating last time updates both cards', [await page.textContent('#kpi-lifts-up'), await verdict()], ['1 / 1', '1 of 1 lift beat last time 💪 · 4 sessions to go']);
+
+    // The rule itself (state swapped in-page, nothing saved)
+    const rules = await page.evaluate(() => {
+        const saved = state.logs;
+        const s = (weight, reps, done = true) => ({ weight: String(weight), reps: String(reps), done });
+        const run = (before, now, beforeWeek = -1) => {
+            state.logs = {
+                ...(before ? { [getWeekKey(beforeWeek)]: { 'session-1': { exercises: { 'ex-101': before } } } } : {}),
+                [getWeekKey(0)]: { 'session-1': { exercises: { 'ex-101': now } } }
+            };
+            const r = getLiftProgress(getWeekKey(0));
+            return `${r.up}/${r.total}`;
+        };
+        const out = {
+            heavierFewerReps: run([s(60, 10)], [s(62.5, 6)]),
+            heavierTopSetOnly: run([s(62.5, 8), s(62.5, 8)], [s(65, 3), s(60, 10)]),
+            sameWeightMoreReps: run([s(60, 10), s(60, 8)], [s(60, 10), s(60, 9)]),
+            sameWeightExtraSet: run([s(60, 10), s(60, 10)], [s(60, 10), s(60, 10), s(60, 5)]),
+            sameWeightFewerReps: run([s(60, 10), s(60, 8)], [s(60, 10), s(60, 7)]),
+            identical: run([s(60, 10)], [s(60, 10)]),
+            lighterMoreReps: run([s(60, 8)], [s(55, 15)]),
+            bodyweightMoreReps: run([s('', 8)], [s('', 10)]),
+            untickedIgnored: run([s(60, 10)], [s(70, 10, false)]),
+            lastTimeWeeksAgo: run([s(60, 10)], [s(62.5, 10)], -3),
+            firstEver: run(null, [s(60, 10)])
+        };
+        state.logs = saved;
+        return out;
+    });
+    check('L1 lifts-up rule', rules, {
+        heavierFewerReps: '1/1', heavierTopSetOnly: '1/1', sameWeightMoreReps: '1/1', sameWeightExtraSet: '1/1',
+        sameWeightFewerReps: '0/1', identical: '0/1', lighterMoreReps: '0/1', bodyweightMoreReps: '1/1',
+        untickedIgnored: '0/0', lastTimeWeeksAgo: '1/1', firstEver: '0/0'
+    });
 
     // Empty
     await seed(() => { localStorage.clear(); sessionStorage.clear(); });
     check('W14 empty verdict', await verdict(), 'Log a workout to start comparing weeks.');
     check('W15 empty: no bar, dashes', [await page.evaluate(() => document.getElementById('weekly-summary-progress').classList.contains('hidden')), (await tiles()).map(t => t[2]).join('')], [true, '––––––']);
+    check('K3 empty lifts card', [await page.textContent('#kpi-lifts-up'), await page.textContent('#kpi-lift-pbs')], ['–', '0 PBs']);
 
     // ---------- Supersets ----------
     const card = i => page.locator('#exercises-list-container > div').nth(i);

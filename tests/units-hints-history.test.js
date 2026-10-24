@@ -45,11 +45,10 @@ async function newPage(browser) {
         await inputs.nth(0).fill('60'); await inputs.nth(0).blur();
         await inputs.nth(1).fill('10'); await inputs.nth(1).blur();
         await page.locator('button[aria-label="Log set 1"]').first().click();
-        check('A1 volume kg', await page.textContent('#kpi-weekly-volume'), '600 kg');
+        check('A1 PB kg', await page.textContent('#pb-ex-101'), 'PB: 60kg × 10');
 
         await page.click('#unit-toggle-btn');
         check('A2 weight shown in lbs', await inputs.nth(0).inputValue(), '132.3');
-        check('A3 volume lbs', await page.textContent('#kpi-weekly-volume'), '1,323 lbs');
         check('A4 PB lbs', await page.textContent('#pb-ex-101'), 'PB: 132.3lbs × 10');
 
         await inputs.nth(2).fill('135'); await inputs.nth(2).blur(); // set 2 typed in lbs

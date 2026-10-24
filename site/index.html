@@ -231,21 +231,21 @@
                 <p id="kpi-hiit-subtitle" class="text-[11px] text-slate-400 dark:text-slate-500 mt-1.5 truncate">10m Pre-Weights Warmups</p>
             </div>
 
-            <!-- KPI 3: Weekly Volume Lifted -->
+            <!-- KPI 3: Lifts that beat last time -->
             <div class="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-3 sm:p-3.5 shadow-sm flex flex-col justify-between">
                 <div class="flex items-center justify-between gap-2">
-                    <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Weekly Volume</span>
+                    <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Lifts Improving</span>
                     <div class="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-500 flex items-center justify-center shrink-0">
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 10v4M7 7v10M17 7v10M21 10v4M7 12h10"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 17l6-6 4 4 8-8M14 7h7v7"/>
                         </svg>
                     </div>
                 </div>
                 <div class="mt-1.5 flex items-baseline justify-between gap-2">
-                    <h2 id="kpi-weekly-volume" class="text-xl sm:text-2xl font-extrabold tracking-tight whitespace-nowrap font-mono">0 kg</h2>
-                    <span id="kpi-sets-completed" class="text-[10px] font-bold text-indigo-500 truncate">0 sets logged</span>
+                    <h2 id="kpi-lifts-up" class="text-xl sm:text-2xl font-extrabold tracking-tight whitespace-nowrap">–</h2>
+                    <span id="kpi-lift-pbs" class="text-[10px] font-bold text-indigo-500 truncate">0 PBs</span>
                 </div>
-                <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-1.5 truncate">Total weight × reps this week</p>
+                <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-1.5 truncate">Beat last time: weight or reps</p>
             </div>
 
             <!-- KPI 4: Active Weekly Consistency Streak -->
@@ -1591,6 +1591,46 @@
             return null;
         }
 
+        // Top weight and the reps done at it: 60×10, 60×10, 60×8 -> { topKg: 60, reps: 28 }
+        function topWeightReps(sets) {
+            const topKg = Math.max(...sets.map(st => parseFloat(st.weight) || 0));
+            const reps = sets.filter(st => (parseFloat(st.weight) || 0) === topKg)
+                .reduce((sum, st) => sum + (parseInt(st.reps, 10) || 0), 0);
+            return { topKg, reps };
+        }
+
+        // Lifts that beat last time: each weight × reps lift ticked in the week against the most recent
+        // time before it. Up = a heavier top weight, or more reps in total at the same top weight.
+        // A first-ever lift has nothing to compare with, so it isn't counted.
+        function getLiftProgress(weekKey) {
+            const wkObj = state.logs[weekKey] || {};
+            const setsByLift = {};
+            state.sessions.forEach(s => {
+                Object.entries(wkObj[s.id]?.exercises || {}).forEach(([exerciseId, sets]) => {
+                    if (!isWeightReps(getTrackById(exerciseId, s.type))) return;
+                    const done = (sets || []).filter(st => st.done);
+                    if (done.length) setsByLift[exerciseId] = (setsByLift[exerciseId] || []).concat(done);
+                });
+            });
+            let up = 0;
+            let total = 0;
+            Object.entries(setsByLift).forEach(([exerciseId, sets]) => {
+                const last = getLastPerformance(exerciseId, weekKey);
+                if (!last) return;
+                total++;
+                const now = topWeightReps(sets);
+                const before = topWeightReps(last.sets);
+                if (now.topKg > before.topKg || (now.topKg === before.topKg && now.reps > before.reps)) up++;
+            });
+            return { up, total };
+        }
+
+        // "5 / 7" ("5/7" when compact); a dash when nothing could be compared
+        function formatLiftProgress({ up, total }, compact = false) {
+            if (!total) return '–';
+            return compact ? `${up}/${total}` : `${up} / ${total}`;
+        }
+
         // "8-10 reps" -> { low: 8, high: 10 }, "12 reps" -> { low: 12, high: 12 }, "20 mins" -> null
         function parseRepRange(target) {
             const t = String(target || '').toLowerCase();
@@ -2050,8 +2090,6 @@
             let hiitWarmupsDone = 0;
             let totalHiitCals = 0;
             let peakHiitWatts = 0;
-            let weeklyVolume = 0;
-            let weeklySetsLogged = 0;
 
             state.sessions.forEach(s => {
                 const sLog = wkObj[s.id];
@@ -2061,10 +2099,6 @@
                 totalHiitCals += parseInt(sLog.hiitCals, 10) || 0;
                 const w = parseInt(sLog.hiitWatts, 10) || 0;
                 if (w > peakHiitWatts) peakHiitWatts = w;
-
-                const stats = getSessionStats(sLog, s.id);
-                weeklySetsLogged += stats.doneSets;
-                weeklyVolume += stats.volumeKg;
             });
 
             const pct = Math.min(100, Math.round((sessionsCompleted / 4) * 100));
@@ -2075,8 +2109,10 @@
             document.getElementById('kpi-hiit-done').textContent = `${hiitWarmupsDone} / 3`;
             document.getElementById('kpi-hiit-cals').textContent = `${totalHiitCals} kcal / ${peakHiitWatts}W`;
 
-            document.getElementById('kpi-weekly-volume').textContent = formatVolume(weeklyVolume);
-            document.getElementById('kpi-sets-completed').textContent = `${weeklySetsLogged} sets logged`;
+            const pbCounts = countPBsByWeek();
+            const weekPBs = pbCounts[weekKey] || 0;
+            document.getElementById('kpi-lifts-up').textContent = formatLiftProgress(getLiftProgress(weekKey));
+            document.getElementById('kpi-lift-pbs').textContent = `${weekPBs} ${weekPBs === 1 ? 'PB' : 'PBs'}`;
 
             // Calculate consecutive active weeks & total sessions all-time
             let totalAllTimeSessions = 0;
@@ -2101,7 +2137,7 @@
             document.getElementById('kpi-week-streak').textContent = `${streakWeeks} ${streakWeeks === 1 ? 'wk' : 'wks'}`;
             document.getElementById('kpi-total-workouts').textContent = `${totalAllTimeSessions} total logged`;
 
-            renderWeeklySummary(weekKey);
+            renderWeeklySummary(weekKey, pbCounts);
         }
 
         // PBs set in each week: ticked sets that beat every earlier set of the same exercise
@@ -2128,19 +2164,17 @@
             return counts;
         }
 
-        // Same counting as the KPI cards, plus time trained and PBs
+        // Same counting as the KPI cards, plus sets and time trained
         function getWeekTotals(weekKey, pbCounts) {
             const wkObj = state.logs[weekKey] || {};
-            const totals = { sessions: 0, volumeKg: 0, sets: 0, ms: 0, pbs: pbCounts[weekKey] || 0, cals: 0 };
+            const totals = { sessions: 0, lifts: getLiftProgress(weekKey), sets: 0, ms: 0, pbs: pbCounts[weekKey] || 0, cals: 0 };
             state.sessions.forEach(s => {
                 const sLog = wkObj[s.id];
                 if (!sLog) return;
                 if (sLog.completed) totals.sessions++;
                 totals.cals += parseInt(sLog.hiitCals, 10) || 0;
                 totals.ms += getSessionTiming(sLog)?.ms || 0;
-                const stats = getSessionStats(sLog, s.id);
-                totals.sets += stats.doneSets;
-                totals.volumeKg += stats.volumeKg;
+                totals.sets += getSessionStats(sLog, s.id).doneSets;
             });
             return totals;
         }
@@ -2166,8 +2200,7 @@
             return { text: `${diff > 0 ? '▲' : '▼'} ${amount}${asPercent ? '%' : ''}`, tone: diff > 0 ? 'up' : 'down' };
         }
 
-        function renderWeeklySummary(weekKey) {
-            const pbCounts = countPBsByWeek();
+        function renderWeeklySummary(weekKey, pbCounts = countPBsByWeek()) {
             const cur = getWeekTotals(weekKey, pbCounts);
             const prev = getWeekTotals(previousWeekKey(weekKey), pbCounts);
             const isThisWeek = weekKey === getWeekKey(0);
@@ -2177,31 +2210,28 @@
                 ? 'This week vs last week'
                 : `${formatSessionDay(null, weekKey)} vs ${lastLabel}`;
 
-            // Headline: volume against the week before. A week still in progress is shown as "so far".
-            const ratio = prev.volumeKg > 0 ? cur.volumeKg / prev.volumeKg : 0;
-            const change = Math.round((ratio - 1) * 100);
+            // Headline: how many lifts beat last time, with the bar showing the share. A week still in
+            // progress also says how many sessions are left.
+            const { up, total } = cur.lifts;
             let verdict;
             if (!cur.sets && !prev.sets && !cur.sessions && !prev.sessions) {
                 verdict = 'Log a workout to start comparing weeks.';
-            } else if (prev.volumeKg > 0 && isThisWeek && ratio < 1) {
-                const left = Math.max(0, 4 - cur.sessions);
-                verdict = `${Math.round(ratio * 100)}% of last week's volume so far${left ? ` · ${left} session${left === 1 ? '' : 's'} to go` : ''}`;
-            } else if (prev.volumeKg > 0) {
-                verdict = change > 0 ? `Volume up ${change}% on ${lastLabel} 💪`
-                    : change < 0 ? `Volume down ${-change}% on ${lastLabel}`
-                    : `Same volume as ${lastLabel} 💪`;
-            } else if (cur.volumeKg > 0) {
-                verdict = `${formatVolume(cur.volumeKg)} lifted · nothing logged ${lastLabel}`;
+            } else if (total) {
+                const left = isThisWeek ? Math.max(0, 4 - cur.sessions) : 0;
+                const all = total === 2 ? 'Both lifts' : `All ${total} lifts`;
+                verdict = (up === total && total > 1 ? `${all} beat last time 💪`
+                    : `${up} of ${total} ${total === 1 ? 'lift' : 'lifts'} beat last time${up ? ' 💪' : ''}`)
+                    + (left ? ` · ${left} session${left === 1 ? '' : 's'} to go` : '');
             } else {
                 verdict = `${cur.sessions} of 4 sessions done (${prev.sessions} ${lastLabel})`;
             }
             document.getElementById('weekly-summary-verdict').textContent = verdict;
-            document.getElementById('weekly-summary-progress').classList.toggle('hidden', !(prev.volumeKg > 0));
-            document.getElementById('weekly-summary-bar').style.width = `${Math.min(100, Math.round(ratio * 100))}%`;
+            document.getElementById('weekly-summary-progress').classList.toggle('hidden', !total);
+            document.getElementById('weekly-summary-bar').style.width = `${total ? Math.round((up / total) * 100) : 0}%`;
 
             const tiles = [
                 ['Sessions', `${cur.sessions}/4`, weekDelta(cur.sessions, prev.sessions), `${prev.sessions}/4`],
-                ['Volume', formatVolume(cur.volumeKg), weekDelta(cur.volumeKg, prev.volumeKg, true), formatVolume(prev.volumeKg)],
+                ['Lifts up', formatLiftProgress(cur.lifts, true), weekDelta(up, prev.lifts.up), formatLiftProgress(prev.lifts, true)],
                 ['Sets', String(cur.sets), weekDelta(cur.sets, prev.sets), String(prev.sets)],
                 ['Time', formatTrainingTime(cur.ms), weekDelta(Math.round(cur.ms / 60000), Math.round(prev.ms / 60000), true), formatTrainingTime(prev.ms)],
                 ['PBs', String(cur.pbs), weekDelta(cur.pbs, prev.pbs), String(prev.pbs)],

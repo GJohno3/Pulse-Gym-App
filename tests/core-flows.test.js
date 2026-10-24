@@ -26,7 +26,7 @@ const { check, report } = createChecks();
         await reps.blur();
         await page.locator('button[aria-label="Log set 1"]').first().tap();
         await page.waitForTimeout(200);
-        check('C2 ticked set counts towards volume', await page.textContent('#kpi-weekly-volume'), '600 kg');
+        check('C2 ticked set counted (first time: nothing to compare yet)', [await page.textContent('#weekly-summary-grid > div:nth-child(3) p:nth-child(2)'), await page.textContent('#kpi-lifts-up')], ['1', '–']);
         check('C3 rest timer started', await page.evaluate(() => restEndsAt > Date.now()), true);
         check('C4 no section nested inside another', await page.evaluate(() => document.querySelectorAll('section section').length), 0);
         check('C5 no errors / CSP violations', [page.errors, page.csp], [[], []]);

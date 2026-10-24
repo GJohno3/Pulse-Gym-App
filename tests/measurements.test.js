@@ -75,7 +75,7 @@ const check = (name, actual, expected) => {
     await card(1).locator('button[aria-label="Log set 1"]').click();
     check('T8 stored raw (no kg conversion)', await page.evaluate(() => state.logs[getWeekKey(0)]['session-4'].exercises['ex-402'][0]).then(s => ({ weight: s.weight, reps: s.reps, done: s.done })), { weight: '5.2', reps: '25', done: true });
     check('T9 rower PB', await page.textContent('#pb-ex-402'), 'PB: 5.2 km · 25 min');
-    check('T10 cardio not added to kg volume', await page.textContent('#kpi-weekly-volume'), '0 kg');
+    check('T10 cardio not counted as a lift', await page.textContent('#kpi-lifts-up'), '–');
 
     // Ab work: Reps + Nothing -> one wide input
     await card(2).locator('button[title="Edit Exercise"]').click();
