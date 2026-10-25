@@ -417,6 +417,7 @@
                                 <span id="active-session-badge" class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 shrink-0">In Progress</span>
                             </div>
                             <p id="active-session-subtitle" class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Tap ✓ on each set to log & auto-start the rest timer</p>
+                            <p id="active-session-estimate" class="hidden text-[11px] font-semibold text-indigo-500 dark:text-indigo-400 mt-0.5"></p>
                         </div>
 
                         <div class="flex items-center gap-2 shrink-0">
@@ -1755,6 +1756,77 @@
             return new Date(timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
         }
 
+        // Expected session time: the HIIT warm-up, ~45s of work per set (a timed exercise uses its
+        // target), and the rest after every set except the last. Supersets rest once per round.
+        const SET_WORK_SECONDS = 45;
+
+        // Seconds of work in each set. A target in minutes ("15-20 mins") is the whole exercise, shared
+        // across its sets; one in seconds ("30-45 secs") is each set. Ranges use the top end.
+        function workSecondsPerSet(ex, setCount) {
+            const target = String(ex.target || '').toLowerCase();
+            const mins = target.match(/(\d+(?:\.\d+)?)(?:\s*(?:-|–|to)\s*(\d+(?:\.\d+)?))?\s*min/);
+            if (mins) return (Number(mins[2] || mins[1]) * 60) / Math.max(1, setCount);
+            const secs = target.match(/(\d+)(?:\s*(?:-|–|to)\s*(\d+))?\s*(?:sec|s\b)/);
+            if (secs) return Number(secs[2] || secs[1]);
+            return SET_WORK_SECONDS;
+        }
+
+        // { hiitMin, workMin, restMin, totalMin, sets, leftSec } for the sets in `sLog` (the default
+        // number of sets without one). leftSec counts only what isn't done yet.
+        function estimateSessionTime(session, sLog, weekKey) {
+            const hiitSec = session.requiresAssaultBike ? hiitTotalSeconds() : 0;
+            let hiitLeft = 0;
+            if (hiitSec && !sLog?.hiitDone) {
+                const timerHere = hiitTimerTarget?.sessionId === session.id && hiitTimerTarget?.weekKey === weekKey;
+                hiitLeft = timerHere ? hiitTimerSeconds : hiitSec;
+            }
+            let sets = 0;
+            let workSec = 0;
+            let workLeft = 0;
+            // Rest comes after each round: a single exercise's set, or one set of everything in a superset
+            const blocks = [];
+            const supersets = getSupersetGroups(session);
+            session.exercises.forEach((ex, i) => {
+                const logged = sLog?.exercises?.[ex.id];
+                const count = logged?.length || ex.defaultSets || 3;
+                const open = logged?.length ? logged.filter(st => !st.done).length : count;
+                const perSet = workSecondsPerSet(ex, count);
+                sets += count;
+                workSec += count * perSet;
+                workLeft += open * perSet;
+                const superset = supersets.find(g => i >= g.start && i <= g.end);
+                if (superset && i > superset.start) {
+                    const block = blocks[blocks.length - 1];
+                    block.count = Math.max(block.count, count);
+                    block.open = Math.max(block.open, open);
+                    block.rest = Math.max(block.rest, getRestSeconds(ex));
+                } else {
+                    blocks.push({ count, open, rest: getRestSeconds(ex) });
+                }
+            });
+            // Rest after every round except the very last one
+            const restAfter = key => {
+                const last = blocks.filter(b => b[key] > 0).pop();
+                return blocks.reduce((sum, b) => sum + b[key] * b.rest, 0) - (last ? last.rest : 0);
+            };
+            const hiitMin = Math.round(hiitSec / 60);
+            const workMin = Math.round(workSec / 60);
+            const restMin = Math.round(restAfter('count') / 60);
+            return {
+                hiitMin, workMin, restMin, sets,
+                totalMin: hiitMin + workMin + restMin, // the parts shown add up to the total
+                leftSec: Math.round(hiitLeft + workLeft + restAfter('open'))
+            };
+        }
+
+        // Average of this day's last few finished workouts before `weekKey`; 0 with fewer than two
+        function getUsualDurationMs(sessionId, weekKey) {
+            const times = Object.keys(state.logs).filter(wk => wk < weekKey).sort()
+                .map(wk => getSessionTiming(state.logs[wk]?.[sessionId]))
+                .filter(t => t?.finished).slice(-4).map(t => t.ms);
+            return times.length >= 2 ? times.reduce((a, b) => a + b, 0) / times.length : 0;
+        }
+
         function isSessionLogged(sLog) {
             if (!sLog) return false;
             if (sLog.completed || sLog.hiitDone || parseInt(sLog.hiitCals, 10) > 0 || parseInt(sLog.hiitWatts, 10) > 0) return true;
@@ -1796,6 +1868,7 @@
                 const isActive = state.activeSessionId === session.id;
                 const isDone = !!sLog.completed;
                 const hiitDone = !!sLog.hiitDone;
+                const expected = estimateSessionTime(session, sLog, weekKey).totalMin;
 
                 return `
                     <button type="button" onclick="selectSession('${session.id}')"
@@ -1825,7 +1898,7 @@
                         </div>
                         <div>
                             <p class="font-extrabold text-xs sm:text-sm leading-tight truncate">${escapeHtml(session.shortName || session.name)}</p>
-                            <p class="text-[10px] opacity-70 mt-0.5 truncate">${session.exercises.length} exercises</p>
+                            <p class="text-[10px] opacity-70 mt-0.5 truncate">${session.exercises.length} exercises${expected ? ` · ~${formatTrainingTime(expected * 60000)}` : ''}</p>
                         </div>
                     </button>
                 `;
@@ -1837,18 +1910,44 @@
         // Session header line: live "Started 18:05 · 34 min so far", or "Finished in 52 min" once complete
         function renderSessionTiming() {
             const el = document.getElementById('active-session-subtitle');
-            const sLog = state.logs[getWeekKey(state.weekOffset)]?.[state.activeSessionId];
+            const weekKey = getWeekKey(state.weekOffset);
+            const sLog = state.logs[weekKey]?.[state.activeSessionId];
             const timing = getSessionTiming(sLog);
+            const sinceStart = sLog?.startedAt ? Date.now() - sLog.startedAt : -1;
+            const inProgress = !sLog?.completed && sinceStart >= 0 && sinceStart <= MAX_WORKOUT_MS;
             if (timing?.finished) {
                 el.textContent = `Finished in ${formatDuration(timing.ms)} · ${formatClock(timing.start)}–${formatClock(timing.end)}`;
-                return;
-            }
-            const sinceStart = sLog?.startedAt ? Date.now() - sLog.startedAt : -1;
-            if (!sLog?.completed && sinceStart >= 0 && sinceStart <= MAX_WORKOUT_MS) {
+            } else if (inProgress) {
                 el.textContent = `Started ${formatClock(sLog.startedAt)} · ${formatDuration(sinceStart)} so far`;
-                return;
+            } else {
+                el.textContent = SESSION_TIP;
             }
-            el.textContent = SESSION_TIP;
+            renderSessionEstimate(weekKey, sLog, inProgress);
+        }
+
+        // Second header line: the expected time before starting, what's left during, the plan once finished
+        function renderSessionEstimate(weekKey, sLog, inProgress) {
+            const el = document.getElementById('active-session-estimate');
+            const session = state.sessions.find(s => s.id === state.activeSessionId);
+            const est = session ? estimateSessionTime(session, sLog, weekKey) : null;
+            let text = '';
+            if (est?.totalMin && sLog?.completed) {
+                text = `⏱ Planned about ${formatDuration(est.totalMin * 60000)}`;
+            } else if (est?.totalMin && inProgress) {
+                text = est.leftSec > 0
+                    ? `⏱ About ${formatDuration(est.leftSec * 1000)} to go · done ≈ ${formatClock(Date.now() + est.leftSec * 1000)}`
+                    : '⏱ All sets done 💪';
+            } else if (est?.totalMin) {
+                const parts = [
+                    est.hiitMin ? `${hiitShortLength()} HIIT` : '',
+                    est.sets ? `${est.sets} sets (${formatTrainingTime(est.workMin * 60000)})` : '',
+                    est.restMin ? `${formatTrainingTime(est.restMin * 60000)} rest` : ''
+                ].filter(Boolean);
+                const usual = getUsualDurationMs(session.id, weekKey);
+                text = `⏱ About ${formatDuration(est.totalMin * 60000)}: ${parts.join(' + ')}${usual ? ` · usually ${formatDuration(usual)}` : ''}`;
+            }
+            el.textContent = text;
+            el.classList.toggle('hidden', !text);
         }
 
         function renderActiveSession(weekKey) {
@@ -3952,8 +4051,13 @@
                 while (firstDay.getDay() !== day) firstDay.setDate(firstDay.getDate() + 1);
 
                 const title = `💪 Day ${session.number} · ${session.name}${session.requiresAssaultBike ? ` + ${hiitShortLength()} Bike HIIT` : ''}`;
+                // Event as long as the expected workout, to the next 5 minutes
+                const expected = estimateSessionTime(session, null, '').totalMin;
+                const eventMins = Math.max(15, Math.ceil(expected / 5) * 5);
                 const details = [
-                    ...(session.requiresAssaultBike ? ['Start with 10 mins Assault Bike HIIT.', ''] : []),
+                    `About ${formatDuration(expected * 60000)} in total.`,
+                    ...(session.requiresAssaultBike ? [`Start with ${hiitShortLength()} Assault Bike HIIT.`] : []),
+                    '',
                     ...session.exercises.map(ex => `• ${ex.name} — ${ex.target}`)
                 ].join('\n');
                 return [
@@ -3961,7 +4065,7 @@
                     `UID:pulsegym-${session.id}@pulsegym.app`,
                     `DTSTAMP:${stamp}`,
                     `DTSTART:${formatDateKey(firstDay).replace(/-/g, '')}T${clock}`,
-                    'DURATION:PT1H15M',
+                    `DURATION:PT${eventMins >= 60 ? `${Math.floor(eventMins / 60)}H` : ''}${eventMins % 60 ? `${eventMins % 60}M` : ''}`,
                     `RRULE:FREQ=WEEKLY;BYDAY=${WEEKDAYS[day].code}`,
                     `SUMMARY:${icsText(title)}`,
                     `DESCRIPTION:${icsText(details)}`,

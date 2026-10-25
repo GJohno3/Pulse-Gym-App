@@ -170,6 +170,8 @@ const lastWeek = mk => `({ [getWeekKey(-1)]: { 'session-1': { completed: true, d
         check('C9 lines ≤ 75 bytes', ics.split('\r\n').every(l => Buffer.byteLength(l, 'utf8') <= 75), true);
         const starts = [...unfolded.matchAll(/DTSTART:(\d{4})(\d{2})(\d{2})/g)].map(m => new Date(+m[1], +m[2] - 1, +m[3]).getDay());
         check('C10 each series starts on its own weekday', starts, [1, 2, 0]);
+        check('C10b events last the expected time (to 5 min)', [...unfolded.matchAll(/DURATION:(\S+)/g)].map(m => m[1]), ['PT45M', 'PT45M', 'PT55M']);
+        check('C10c expected time in the details', unfolded, t => t.includes('About 42 min in total.\\nStart with 10m Assault Bike HIIT.'));
         await page.reload();
         await page.click('button[title^="Gym Reminders"]');
         check('C11 days & time remembered', [await page.locator('#reminder-days-list select').evaluateAll(els => els.map(e => e.value)), await page.inputValue('#gym-reminder-time')], [['1', '2', '-1', '0'], '06:45']);
